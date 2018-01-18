@@ -22,6 +22,8 @@ We are pleased to announce status update release 1 of DERO Blockchain.
 
 **NOTE: DO NOT MIGRATE to this daemon. This is strictly for evaluation.**
 
+![Status-release-update-1](http://seeds.dero.io/images/status-release-1.png)
+
 In the status update release 1, Following parts of cryptonote has been rewritten in golang.
 
 At present, Golang DERO daemon can sync and verify blockchain with the existing DERO network.
