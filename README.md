@@ -1,6 +1,6 @@
 # DERO: Secure, Private Blockchain with Smart Contracts
 
-**DERO project :  Cryptonote + Smart contracts + Lightning fast transactions.**
+## DERO Project :  Cryptonote + Smart contracts + Lightning fast transactions.
 
 DERO blockchain is a complete new blockchain supporting privacy on cryptonote protocol and smart contracts with lightening fast transactions.
 DERO blockchain will be implemented in Golang.
@@ -8,7 +8,7 @@ DERO blockchain will be implemented in Golang.
 We are pleased to announce status update release 1 of DERO Blockchain.
 
 **NOTE: DO NOT MIGRATE to this daemon. This is strictly for evaluation.**
-LINK:
+
 
 In the status update release 1, Following parts of cryptonote has been rewritten in golang.
 
@@ -55,7 +55,10 @@ The daemon is only for limited testing and evaluation purposes only.
 
 - RPC interface not exported
 
-  
+## Build:
+In go workspace: **go get -u github.com/deroproject/derosuite/...**
+    
+Check bin folder for derod binary. Use golang-1.9 version minimum.
 
 
 For technical issues and discussion, please visit https://forum.dero.io
