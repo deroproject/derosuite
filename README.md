@@ -7,8 +7,20 @@ DERO blockchain will be implemented in Golang.
 
 We are pleased to announce status update release 1 of DERO Blockchain.
 
-**NOTE: DO NOT MIGRATE to this daemon. This is strictly for evaluation.**
+| Operating System | Download |
+| ---------------- | -------- |
+| Windows 32       |  http://seeds.dero.io/build/derod-windows-386.exe |
+| Windows 64       | http://seeds.dero.io/build/derod-windows-amd64.exe |
+| Mac 10.8 & Later | http://seeds.dero.io/build/derod-darwin-amd64 |
+| Linux 32         | http://seeds.dero.io/build/derod-linux-386 |
+| Linux 64         | http://seeds.dero.io/build/derod-linux-amd64 |
+| OpenBSD 64       | http://seeds.dero.io/build/derod-openbsd-amd64 |
+| FreeBSD 64       | http://seeds.dero.io/build/derod-freebsd-amd64 |
+| Linux ARM 64     | http://seeds.dero.io/build/derod-linux-arm64 |
+| More Builds | http://seeds.dero.io/build/ |
 
+
+**NOTE: DO NOT MIGRATE to this daemon. This is strictly for evaluation.**
 
 In the status update release 1, Following parts of cryptonote has been rewritten in golang.
 
