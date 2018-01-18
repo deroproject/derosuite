@@ -2,7 +2,7 @@
 
 ## DERO Project :  Cryptonote + Smart contracts + Lightning fast transactions.
 
-DERO blockchain is a complete new blockchain supporting privacy on cryptonote protocol and smart contracts with lightening fast transactions.
+DERO blockchain is a complete new blockchain supporting privacy on cryptonote protocol and smart contracts with lightning fast transactions.
 DERO blockchain will be implemented in Golang.
 
 We are pleased to announce status update release 1 of DERO Blockchain.
