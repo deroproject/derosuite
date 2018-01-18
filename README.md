@@ -22,10 +22,10 @@ For specific details of current DERO core implementation and capabilities, see b
    2. **P2P Protocol:** Handshake exchange, P2P commands and timed synchronization.
    3. **CryptoNote Protocol:** This layers controls exchange of blocks, transactions and blockchain itself.
 3.  **Pederson Commitment:** (Part of ring confidential transactions): Pederson commitment algorithm is a cryptographic primitive that allows user to commit to a chosen value  while keeping it hidden to others. Pederson commitment  is used to hide all amounts without revealing the actual amount. It is a homomorphic commitment scheme.
-4.  **Borromean Signature **: (Part of ring confidential transactions):  Borromean Signatures are used to prove that the commitment has a specific value, without revealing the value itself.
-5.  **Additive Homomorphic Encryption **: Additive Homomorphic Encryption is used to prove that sum of encrypted Input transaction amounts is EQUAL to sum of encrypted output amounts. This is based on Homomorphic Pederson commitment scheme.
+4.  **Borromean Signature:**  (Part of ring confidential transactions):  Borromean Signatures are used to prove that the commitment has a specific value, without revealing the value itself.
+5.  **Additive Homomorphic Encryption:** Additive Homomorphic Encryption is used to prove that sum of encrypted Input transaction amounts is EQUAL to sum of encrypted output amounts. This is based on Homomorphic Pederson commitment scheme.
 6.  **Multilayered Linkable Spontaneous Anonymous Group (MLSAG) Work-in-Progress:** (Part of ring confidential transactions): MLSAG gives DERO untraceability and increases privacy and fungibility. MLSAG is a user controlled parameter ( Mixin) which the user can change to improve his privacy. Mixin of minimal amount is enforced and user cannot disable it.
-7.  **Core-Consensus Protocol implemented**: Consensus protocol serves 2 major purpose
+7.  **Core-Consensus Protocol implemented:** Consensus protocol serves 2 major purpose
    1. Protects the system from adversaries and protects it from forking and tampering.
    2. Next block in the chain is the one and only correct  version of truth ( balances)
 8.  **Proof-of-Work(PoW) algorithm:**  PoW part of core consensus protocol which is used to cryptographically prove that X amount of work has been done to successfully find a block. To deter use of specialized hardware,  an ASIC resistant, memory bound  cryptonight algorithm is used in DERO project.
@@ -38,7 +38,7 @@ For specific details of current DERO core implementation and capabilities, see b
 15.  GO DERO Daemon has both mainnet, testnet support.
 16.  Tree-hash for transactions (based on keccak): This merkle root allows user to verify transactions as needed without adding transaction body to block header.
 17.  BOLT Database: DERO Blockchain uses BoltDB for future scalability and low latency reads.
-18.  Enhanced Reliability, Privacy, Security, Useability, Portabilty assured. For discussion on each point how pls visit forum.
+18.  **Enhanced Reliability, Privacy, Security, Useability, Portabilty assured.** For discussion on each point how pls visit forum.
 
 
 
@@ -55,11 +55,11 @@ The daemon is only for limited testing and evaluation purposes only.
 
 - RPC interface not exported
 
-  ​
+  
 
 
 For technical issues and discussion, please visit https://forum.dero.io
-
+```
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mQSuBFpgP9IRDAC5HFDj9beW/6THlCHMPmjSCUeT0lKtT22uHbTA5CpZFTRvrjF8
@@ -112,6 +112,6 @@ oDqd6AUCWmA/0gIbDAAKCRAIsgNgoDqd6LTZAQDESAvVHbtyKTwMmrx88p6Ljmtp
 pKxKP0O5AFM7b7INbQEAtE3lAIBUA31x3fjC5L6UyGk/a2ssOWTsJx98YxMcPhs=
 =H4Qj
 -----END PGP PUBLIC KEY BLOCK-----
-
+```
 
 
