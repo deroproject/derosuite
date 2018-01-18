@@ -1,0 +1,25 @@
+{
+  "id": "0",
+  "jsonrpc": "2.0",
+  "result": {
+    "blob": "0606a0ddd3d205f87dd7136998a2e56a963ca1387a9738a98c7aa72a6f8a570f9c71397af383ed76080a1502a7850101ffeb840101c6c7edffe9f506021c41a23fd5a320a69fa4cb7d2ed436ccbab272e00a87a8e5e62773d2ba068af02b01f760a7b6c9ab5c7a93980930048314a0d030453bff3f17d480e2a47db4423d6202080000000002f682740001a3da5b87603312186d940ef790c3cd3d46ae5533a4118b40949d902d3a190583",
+    "block_header": {
+      "block_size": 95,
+      "depth": 863,
+      "difficulty": 89795673,
+      "hash": "8e7a86de29068834e3dd3a498c4717159cceec7b6f0753b65cbf889d564a6982",
+      "height": 17003,
+      "major_version": 6,
+      "minor_version": 6,
+      "nonce": 352979062,
+      "num_txes": 1,
+      "orphan_status": true,
+      "prev_hash": "f87dd7136998a2e56a963ca1387a9738a98c7aa72a6f8a570f9c71397af383ed",
+      "reward": 30436822311878,
+      "timestamp": 1515515552
+    },
+    "json": "{\n  \"major_version\": 6, \n  \"minor_version\": 6, \n  \"timestamp\": 1515515552, \n  \"prev_id\": \"f87dd7136998a2e56a963ca1387a9738a98c7aa72a6f8a570f9c71397af383ed\", \n  \"nonce\": 352979062, \n  \"miner_tx\": {\n    \"version\": 2, \n    \"unlock_time\": 17063, \n    \"vin\": [ {\n        \"gen\": {\n          \"height\": 17003\n        }\n      }\n    ], \n    \"vout\": [ {\n        \"amount\": 30436822311878, \n        \"target\": {\n          \"key\": \"1c41a23fd5a320a69fa4cb7d2ed436ccbab272e00a87a8e5e62773d2ba068af0\"\n        }\n      }\n    ], \n    \"extra\": [ 1, 247, 96, 167, 182, 201, 171, 92, 122, 147, 152, 9, 48, 4, 131, 20, 160, 208, 48, 69, 59, 255, 63, 23, 212, 128, 226, 164, 125, 180, 66, 61, 98, 2, 8, 0, 0, 0, 0, 2, 246, 130, 116\n    ], \n    \"rct_signatures\": {\n      \"type\": 0\n    }\n  }, \n  \"tx_hashes\": [ \"a3da5b87603312186d940ef790c3cd3d46ae5533a4118b40949d902d3a190583\"\n  ]\n}",
+    "status": "OK",
+    "tx_hashes": ["a3da5b87603312186d940ef790c3cd3d46ae5533a4118b40949d902d3a190583"]
+  }
+}

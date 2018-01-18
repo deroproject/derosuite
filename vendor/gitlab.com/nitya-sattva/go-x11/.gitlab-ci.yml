@@ -1,0 +1,27 @@
+image: golang:1.7.4
+
+stages:
+  - test
+
+go_tests:
+  stage: test
+  script:
+    - mkdir -p $GOPATH/src/gitlab.com/nitya-sattva/
+    - cd $GOPATH/src/gitlab.com/nitya-sattva/
+    - go version
+    - git clone https://gitlab.com/$CI_PROJECT_NAMESPACE/go-x11.git -b $CI_BUILD_REF_NAME
+    - go test ./go-x11/nist -coverprofile ./nist.log
+    - go test ./go-x11/blake -coverprofile ./blake.log
+    - go test ./go-x11/bmw -coverprofile ./bmw.log
+    - go test ./go-x11/cubed -coverprofile ./cubed.log
+    - go test ./go-x11/echo -coverprofile ./echo.log
+    - go test ./go-x11/groest -coverprofile ./groest.log
+    - go test ./go-x11/jhash -coverprofile ./jhash.log
+    - go test ./go-x11/keccak -coverprofile ./keccak.log
+    - go test ./go-x11/luffa -coverprofile ./luffa.log
+    - go test ./go-x11/shavite -coverprofile ./shavite.log
+    - go test ./go-x11/simd -coverprofile ./simd.log
+    - go test ./go-x11/skein -coverprofile ./skein.log
+    - go test ./go-x11 -coverprofile ./x11.log
+  tags:
+    - docker

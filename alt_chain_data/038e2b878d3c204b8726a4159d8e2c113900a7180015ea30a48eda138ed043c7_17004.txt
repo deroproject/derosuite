@@ -1,0 +1,24 @@
+{
+  "id": "0",
+  "jsonrpc": "2.0",
+  "result": {
+    "blob": "0606a8dfd3d2058e7a86de29068834e3dd3a498c4717159cceec7b6f0753b65cbf889d564a69823c7c008a02a8850101ffec84010197c39fb0ecf3060235527c1f4ad20b7003a4a714801d5e0fc5c44538256b2c80e4c98a75be7424ed2b01296ce3ef0900a4d99c574f918e11b1e72e536b8f3a69702bf307800b8852037a02080000000002f64c030000",
+    "block_header": {
+      "block_size": 95,
+      "depth": 862,
+      "difficulty": 92945024,
+      "hash": "038e2b878d3c204b8726a4159d8e2c113900a7180015ea30a48eda138ed043c7",
+      "height": 17004,
+      "major_version": 6,
+      "minor_version": 6,
+      "nonce": 2315287612,
+      "num_txes": 0,
+      "orphan_status": true,
+      "prev_hash": "8e7a86de29068834e3dd3a498c4717159cceec7b6f0753b65cbf889d564a6982",
+      "reward": 30368741187991,
+      "timestamp": 1515515816
+    },
+    "json": "{\n  \"major_version\": 6, \n  \"minor_version\": 6, \n  \"timestamp\": 1515515816, \n  \"prev_id\": \"8e7a86de29068834e3dd3a498c4717159cceec7b6f0753b65cbf889d564a6982\", \n  \"nonce\": 2315287612, \n  \"miner_tx\": {\n    \"version\": 2, \n    \"unlock_time\": 17064, \n    \"vin\": [ {\n        \"gen\": {\n          \"height\": 17004\n        }\n      }\n    ], \n    \"vout\": [ {\n        \"amount\": 30368741187991, \n        \"target\": {\n          \"key\": \"35527c1f4ad20b7003a4a714801d5e0fc5c44538256b2c80e4c98a75be7424ed\"\n        }\n      }\n    ], \n    \"extra\": [ 1, 41, 108, 227, 239, 9, 0, 164, 217, 156, 87, 79, 145, 142, 17, 177, 231, 46, 83, 107, 143, 58, 105, 112, 43, 243, 7, 128, 11, 136, 82, 3, 122, 2, 8, 0, 0, 0, 0, 2, 246, 76, 3\n    ], \n    \"rct_signatures\": {\n      \"type\": 0\n    }\n  }, \n  \"tx_hashes\": [ ]\n}",
+    "status": "OK"
+  }
+}

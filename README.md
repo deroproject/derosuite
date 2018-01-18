@@ -5,12 +5,12 @@
 DERO blockchain is a complete new blockchain supporting privacy on cryptonote protocol and smart contracts with lightening fast transactions.
 DERO blockchain will be implemented in Golang.
 
-We are pleased to announce first release update of DERO blockchain.
+We are pleased to announce status update release 1 of DERO Blockchain.
 
 **NOTE: DO NOT MIGRATE to this daemon. This is strictly for evaluation.**
 LINK:
 
-In the first status update release, following parts of cryptonote has been rewritten in golang.
+In the status update release 1, Following parts of cryptonote has been rewritten in golang.
 
 At present, Golang DERO daemon can sync and verify blockchain with the existing DERO network.
 

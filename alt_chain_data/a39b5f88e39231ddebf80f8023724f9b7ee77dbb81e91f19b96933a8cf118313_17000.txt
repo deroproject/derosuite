@@ -1,0 +1,25 @@
+{
+  "id": "0",
+  "jsonrpc": "2.0",
+  "result": {
+    "blob": "0606a1cfd3d2050eb61f1b78d810d314769e5e6157bc22894127b5d8e5bc417e99091005a7b8588f81029602a4850101ffe8840101ebccbfbbe5f906023c944822f98c9f59fdef57a196bf1987d6f04f8e0721034f974ceb3e4d88bb2d2b019c25765d6603202013f4a89d8ab60e3149ef064aee4a8feab0f936115a716a5502080000000004f64c0300036c69e35c2acfc877af5d1eaa74c70606dbc0b61d84f7e9d497fffaa1af1b6d169027c337be0ddbe65cbe3e21586915d4f39627a96397a40e445be458ba739200ef54f28c61a031912cd49d1a8c8ef1ccba64e23854dbb3328a2551de2290cfc8",
+    "block_header": {
+      "block_size": 95,
+      "depth": 865,
+      "difficulty": 88182342,
+      "hash": "a39b5f88e39231ddebf80f8023724f9b7ee77dbb81e91f19b96933a8cf118313",
+      "height": 17000,
+      "major_version": 6,
+      "minor_version": 6,
+      "nonce": 2516746639,
+      "num_txes": 3,
+      "orphan_status": true,
+      "prev_hash": "0eb61f1b78d810d314769e5e6157bc22894127b5d8e5bc417e99091005a7b858",
+      "reward": 30573044164203,
+      "timestamp": 1515513761
+    },
+    "json": "{\n  \"major_version\": 6, \n  \"minor_version\": 6, \n  \"timestamp\": 1515513761, \n  \"prev_id\": \"0eb61f1b78d810d314769e5e6157bc22894127b5d8e5bc417e99091005a7b858\", \n  \"nonce\": 2516746639, \n  \"miner_tx\": {\n    \"version\": 2, \n    \"unlock_time\": 17060, \n    \"vin\": [ {\n        \"gen\": {\n          \"height\": 17000\n        }\n      }\n    ], \n    \"vout\": [ {\n        \"amount\": 30573044164203, \n        \"target\": {\n          \"key\": \"3c944822f98c9f59fdef57a196bf1987d6f04f8e0721034f974ceb3e4d88bb2d\"\n        }\n      }\n    ], \n    \"extra\": [ 1, 156, 37, 118, 93, 102, 3, 32, 32, 19, 244, 168, 157, 138, 182, 14, 49, 73, 239, 6, 74, 238, 74, 143, 234, 176, 249, 54, 17, 90, 113, 106, 85, 2, 8, 0, 0, 0, 0, 4, 246, 76, 3\n    ], \n    \"rct_signatures\": {\n      \"type\": 0\n    }\n  }, \n  \"tx_hashes\": [ \"6c69e35c2acfc877af5d1eaa74c70606dbc0b61d84f7e9d497fffaa1af1b6d16\", \"9027c337be0ddbe65cbe3e21586915d4f39627a96397a40e445be458ba739200\", \"ef54f28c61a031912cd49d1a8c8ef1ccba64e23854dbb3328a2551de2290cfc8\"\n  ]\n}",
+    "status": "OK",
+    "tx_hashes": ["6c69e35c2acfc877af5d1eaa74c70606dbc0b61d84f7e9d497fffaa1af1b6d16","9027c337be0ddbe65cbe3e21586915d4f39627a96397a40e445be458ba739200","ef54f28c61a031912cd49d1a8c8ef1ccba64e23854dbb3328a2551de2290cfc8"]
+  }
+}

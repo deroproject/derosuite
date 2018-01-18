@@ -1,0 +1,27 @@
+// cryptonote protocol based commands are described here
+https://github.com/monero-project/monero/blob/ed8fc8ac1c694344e30d07f1cb1a5cb904b13f52/src/cryptonote_protocol/cryptonote_protocol_defs.h
+
+
+#define BC_COMMANDS_POOL_BASE 2000
+
+
+
+
+https://github.com/monero-project/monero/blob/master/src/p2p/p2p_protocol_defs.h
+#define P2P_COMMANDS_POOL_BASE 1000 
+
+0x3e9 1001
+0x3ef  1007
+
+
+The protocol state machine works as follows
+if you are client
+connect,
+send support flags
+send handshake
+receive handshake, if height or top is different send, send notify request chain
+// fall into processing loop
+
+
+
+
