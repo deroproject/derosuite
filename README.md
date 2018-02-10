@@ -2,6 +2,8 @@
 
 ## DERO Project :  Cryptonote Privacy + Smart contracts 
 
+## Status Update Release 2:
+
 DERO blockchain is a completely new blockchain supporting CryptoNote Privacy and Smart Contracts. DERO blockchain is being implemented in Golang.
 
 We are pleased to announce Status Update Release 2 of DERO Blockchain.
