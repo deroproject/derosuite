@@ -1,3 +1,19 @@
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 package address
 
 import "fmt"
@@ -6,11 +22,12 @@ import "encoding/binary"
 
 import "github.com/deroproject/derosuite/crypto"
 
+// see https://cryptonote.org/cns/cns007.txt to understand address more
 
 type Address struct {
-	Network     uint64
-	SpendingKey []byte
-	ViewingKey  []byte
+	Network  uint64
+	SpendKey crypto.Key
+	ViewKey  crypto.Key
 
 	//TODO add support for integrated address
 }
@@ -32,9 +49,14 @@ func (a *Address) Base58() (result string) {
 	n := binary.PutUvarint(prefix, a.Network)
 	prefix = prefix[:n]
 
-	checksum := GetChecksum(prefix, a.SpendingKey, a.ViewingKey)
-	result = EncodeDeroBase58(prefix, a.SpendingKey, a.ViewingKey, checksum[:])
+	checksum := GetChecksum(prefix, a.SpendKey[:], a.ViewKey[:])
+	result = EncodeDeroBase58(prefix, a.SpendKey[:], a.ViewKey[:], checksum[:])
 	return
+}
+
+// stringifier
+func (a Address) String() string {
+	return a.Base58()
 }
 
 func NewAddress(address string) (result *Address, err error) {
@@ -62,10 +84,12 @@ func NewAddress(address string) (result *Address, err error) {
 	raw = raw[done:]
 
 	result = &Address{
-		Network:     address_prefix,
-		SpendingKey: raw[0:32],
-		ViewingKey:  raw[32:64],
+		Network: address_prefix,
+		//SpendKey: raw[0:32],
+		//ViewKey:  raw[32:64],
 	}
+	copy(result.SpendKey[:], raw[0:32])
+	copy(result.ViewKey[:], raw[32:64])
 
 	return
 }

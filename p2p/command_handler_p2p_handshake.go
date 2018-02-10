@@ -1,5 +1,20 @@
-package p2p
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+package p2p
 
 import "fmt"
 import "net"
@@ -9,8 +24,6 @@ import "github.com/romana/rlog"
 import log "github.com/sirupsen/logrus"
 
 import "github.com/deroproject/derosuite/globals"
-
-
 
 // the connection starts with P2P handshake
 
@@ -70,9 +83,8 @@ func Send_Handshake(connection *Connection) {
 // our response is a boost compatible response which is parseable by old cryptonote daemons
 func Handle_P2P_Handshake_Command(connection *Connection,
 	i_command_header *Levin_Header, buf []byte) {
-    
-    
-       connection.logger.Infof("Handshake request arrived, we must parse it")
+
+	connection.logger.Infof("Handshake request arrived, we must parse it")
 
 	// extract peers from our list, and insert them into the response
 	// max 250 peers can be send ( since we are aiming compatibility with  old daemons)
@@ -121,9 +133,8 @@ func Handle_P2P_Handshake_Command(connection *Connection,
 	connection.Conn.Write(data)
 
 	rlog.Tracef(4, "Sending handshake response\n")
-        
-        
-        Handle_P2P_Handshake_Command_Response(connection, i_command_header,buf) // parse incoming response
+
+	Handle_P2P_Handshake_Command_Response(connection, i_command_header, buf) // parse incoming response
 
 }
 

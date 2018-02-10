@@ -32,6 +32,6 @@ the psedo code is as follows
 7) if yes,update main chain
 8) if not we have to do chain reorganisation at the top
 9) choose the block with higher poW as new top
-10) push alt chain txs to mem pool
+10) push alt chain txs to mem pool after verification
 11) if block is being added somewhere in the middle, find the chain with higher Pow as main chain
-12) push the orphan block txs to mempool
+12) push the orphan block txs to mempool after verification

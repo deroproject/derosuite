@@ -1,5 +1,20 @@
-package p2p
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+package p2p
 
 import "bytes"
 import "encoding/binary"
@@ -8,8 +23,6 @@ import "github.com/romana/rlog"
 
 import "github.com/deroproject/derosuite/globals"
 import "github.com/deroproject/derosuite/crypto"
-
-
 
 /* the data structure which needs to be serialised is    defined in cryptonote_protocol_defs.h
 * struct request
@@ -48,7 +61,7 @@ func Handle_BC_Notify_Response_Chain_Entry(connection *Connection,
 	pos := bytes.Index(i_data_header.Data, []byte("cumulative_difficulty")) // at this point to
 	if pos == -1 {
 		rlog.Tracef(4, "Cumulative difficulty deserialisation failed. Disconnect peer \n")
-                connection.Exit = true
+		connection.Exit = true
 		return
 	}
 
@@ -59,7 +72,7 @@ func Handle_BC_Notify_Response_Chain_Entry(connection *Connection,
 	pos = bytes.Index(i_data_header.Data, []byte("start_height")) // at this point to
 	if pos == -1 {
 		panic("start_height not found, its mandatory\n")
-                
+
 	}
 
 	start_height := binary.LittleEndian.Uint64(i_data_header.Data[pos+13:])
@@ -84,7 +97,7 @@ func Handle_BC_Notify_Response_Chain_Entry(connection *Connection,
 	}
 	if (data_length % 32) != 0 { // sanity check
 		rlog.Tracef(2, "We should destroy connection here, packet mismatch")
-                connection.Exit = true
+		connection.Exit = true
 		return
 	}
 
@@ -110,8 +123,8 @@ func Handle_BC_Notify_Response_Chain_Entry(connection *Connection,
 	}
 
 	// server will kill us, if we queue more than 1000 blocks
-	if len(block_list) > 400 {
-		block_list = block_list[:399]
+	if len(block_list) > 900 {
+		block_list = block_list[:899]
 	}
 
 	// make sure the genesis block is same

@@ -1,8 +1,23 @@
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 package config
 
 import "github.com/satori/go.uuid"
 import "github.com/deroproject/derosuite/crypto"
-
 
 // all global configuration variables are picked from here
 
@@ -17,15 +32,37 @@ var COIN_DIFFICULTY_TARGET = uint64(120)                 // this is a feeder to 
 var COIN_FINAL_SUBSIDY_PER_MINUTE = uint64(300000000000) // 0.3 DERO per minute = 157680 per year roughly
 var CRYPTONOTE_REWARD_BLOCKS_WINDOW = uint64(100)        // last 100 blocks are used to create
 
+var MINER_TX_AMOUNT_UNLOCK = uint64(60)  // miner tx will need 60 blocks to mature
+var NORMAL_TX_AMOUNT_UNLOCK = uint64(10) // normal transfers will mature at 10th (9 blocks distance) blocks to mature
+
+// this is used to find whether output is locked to height or time
+// see input maturity to find how it works
+// if locked is less than this, then it is considered locked to height else epoch
+var CRYPTONOTE_MAX_BLOCK_NUMBER = uint64(500000000)
+
 var MAX_CHAIN_HEIGHT = uint64(2147483648) // 2^31
 
 // we use this for scheduled hardforks
 var CURRENT_BLOCK_MAJOR_VERSION = 6
 var CURRENT_BLOCK_MINOR_VERSION = 6
+
+// this is also the minimum block size
 var CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE = uint64(300000) // after this block size , reward calculated differently
+var CRYPTONOTE_MAX_TX_SIZE = uint64(100 * 1024 * 1024)         // 100 MB, we must rationalize it
+
+// we only accept blocks which are this much into future, 2 hours
+const CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT = 60 * 60 * 20
+
+// block is checked that the timestamp is not less than the median of this many blocks
+const BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW = 60
 
 // consider last 30 blocks for calculating difficulty
-var DIFFICULTY_BLOCKS_COUNT_V2 = 30
+const DIFFICULTY_BLOCKS_COUNT_V2 = 30
+
+// FEE calculation constants are here
+// the constants can be found in cryptonote_config.h
+const DYNAMIC_FEE_PER_KB_BASE_FEE_V5 = uint64((2000000000 * 60000) / 300000)
+const DYNAMIC_FEE_PER_KB_BASE_BLOCK_REWARD = uint64(10000000000000) // 10 * pow(10,12)
 
 const PROJECT_NAME = "dero"
 const POOLDATA_FILENAME = "poolstate.bin"

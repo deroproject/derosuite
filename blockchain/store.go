@@ -1,3 +1,19 @@
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 package blockchain
 
 import "fmt"
@@ -5,10 +21,10 @@ import "encoding/binary"
 
 //import log "github.com/sirupsen/logrus"
 
+import "github.com/deroproject/derosuite/block"
 import "github.com/deroproject/derosuite/crypto"
 import "github.com/deroproject/derosuite/globals"
-
-
+import "github.com/deroproject/derosuite/transaction"
 
 /* this file implements the only interface which translates comands  to/from blockchain to storage layer *
  *
@@ -50,16 +66,15 @@ var GALAXY_OUTPUT_INDEX = []byte("OUTPUT_INDEX") // incremental index over  outp
 
 // individual attributes becomes the planets
 // individual attributes should be max  1 or 2 chars long, as they will be repeated millions of times and storing a static string millions of times shows foolishness
-var PLANET_BLOB = []byte("BLOB")     //it shows serialised block
-var PLANET_HEIGHT = []byte("HEIGHT") // contains height
-var PLANET_PARENT = []byte("PARENT") // parent of block
+var PLANET_BLOB = []byte("BLOB")                      //it shows serialised block
+var PLANET_HEIGHT = []byte("HEIGHT")                  // contains height
+var PLANET_PARENT = []byte("PARENT")                  // parent of block
 var PLANET_SIZE = []byte("SIZE")                      // sum of block + all txs
 var PLANET_ALREADY_GENERATED_COINS = []byte("CCOINS") // all coins generated till this block
-var PLANET_OUTPUT_INDEX = []byte("OUTPUT_INDEX") // tx outputs indexing starts from here for this block
+var PLANET_OUTPUT_INDEX = []byte("OUTPUT_INDEX")      // tx outputs indexing starts from here for this block
 var PLANET_CUMULATIVE_DIFFICULTY = []byte("CDIFFICULTY")
 var PLANET_CHILD = []byte("CHILD")
-
-//var PLANET_ORPHAN = []byte("ORPHAN")
+var PLANET_BASEREWARD = []byte("BASEREWARD") // base reward of a block
 var PLANET_TIMESTAMP = []byte("TIMESTAMP")
 
 // this ill only be present if more tahn 1 child exists
@@ -67,7 +82,7 @@ var PLANET_CHILDREN = []byte("CHILREN") // children list excludes the main child
 
 // the TX has the following attributes
 var PLANET_TX_BLOB = []byte("BLOB")                 // contains serialised  TX , this attribute is also found in BLOCK where
-var PLANET_TX_MINED_IN_BLOCK = []byte("MINERBLOCK") // which block mined this tx
+var PLANET_TX_MINED_IN_BLOCK = []byte("MINERBLOCK") // which block mined this tx, height
 var PLANET_TX_SIZE = []byte("SIZE")
 
 // the universe concept is there, as we bring in smart contracts, we will give each of them a universe to play within
@@ -164,7 +179,7 @@ func (chain *Blockchain) Load_Block_Children(parent_id crypto.Hash) (children []
 	children_bytes, _ := chain.store.LoadObject(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, parent_id[:], PLANET_CHILDREN)
 
 	if len(children_bytes)%32 != 0 {
-		panic(fmt.Sprintf("parent does not have child hash in multiples of 32, block_hash %x", parent_id))
+		panic(fmt.Sprintf("parent does not have child hash in multiples of 32, block_hash %s", parent_id))
 	}
 	for i := 0; i < len(children_bytes); i = i + 32 {
 		copy(child_hash[:], children_bytes[i:i+32])
@@ -175,12 +190,15 @@ func (chain *Blockchain) Load_Block_Children(parent_id crypto.Hash) (children []
 
 // store a tx
 // this only occurs when a tx has been mined
-func (chain *Blockchain) Store_TX(tx *Transaction) {
+// stores a height to show at what height it has been mined
+func (chain *Blockchain) Store_TX(tx *transaction.Transaction, Height uint64) {
 	hash := tx.GetHash()
 	serialized := tx.Serialize()
 	err := chain.store.StoreObject(BLOCKCHAIN_UNIVERSE, GALAXY_TRANSACTION, hash[:], PLANET_TX_BLOB, serialized)
 	// store size of tx
 	chain.store.StoreUint64(BLOCKCHAIN_UNIVERSE, GALAXY_TRANSACTION, hash[:], PLANET_TX_SIZE, uint64(len(serialized)))
+
+	chain.store.StoreUint64(BLOCKCHAIN_UNIVERSE, GALAXY_TRANSACTION, hash[:], PLANET_TX_MINED_IN_BLOCK, Height)
 
 	_ = err
 }
@@ -196,9 +214,18 @@ func (chain *Blockchain) Load_TX_Size(txhash crypto.Hash) uint64 {
 	size, err := chain.store.LoadUint64(BLOCKCHAIN_UNIVERSE, GALAXY_TRANSACTION, txhash[:], PLANET_TX_SIZE)
 
 	if err != nil {
-		logger.Warnf("Size not stored for tx %x", txhash)
+		logger.Warnf("Size not stored for tx %s", txhash)
 	}
 	return size
+}
+
+// load height at which a specific tx was mined
+func (chain *Blockchain) Load_TX_Height(txhash crypto.Hash) uint64 {
+	height, err := chain.store.LoadUint64(BLOCKCHAIN_UNIVERSE, GALAXY_TRANSACTION, txhash[:], PLANET_TX_MINED_IN_BLOCK)
+	if err != nil {
+		logger.Warnf("Error while querying height for tx %s\n", txhash)
+	}
+	return height
 }
 
 // BUG we should be able to delete any arbitrary key
@@ -206,7 +233,7 @@ func (chain *Blockchain) Load_TX_Size(txhash crypto.Hash) uint64 {
 
 // TODO the miner tx should be extracted ands stored from somewhere else
 // NOTE: before storing a block, its transactions must be stored
-func (chain *Blockchain) Store_BL(bl *Block) {
+func (chain *Blockchain) Store_BL(bl *block.Block) {
 
 	// store block height BHID automatically
 
@@ -245,38 +272,52 @@ func (chain *Blockchain) Store_BL(bl *Block) {
 	total_difficulty := cumulative_difficulty + difficulty_of_current_block
 	chain.store.StoreUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_CUMULATIVE_DIFFICULTY, total_difficulty)
 
-	// total size of block = size of block + size of all transactions in block ( excludind miner tx)
-	size_of_block := uint64(len(serialized_bytes))
+	// total size of block = size of miner_tx + size of all transactions in block ( excludind miner tx)
+	size_of_block := uint64(len(bl.Miner_tx.Serialize()))
 	for i := 0; i < len(bl.Tx_hashes); i++ {
 		size_of_tx := chain.Load_TX_Size(bl.Tx_hashes[i])
 		size_of_block += size_of_tx
 	}
 	chain.store.StoreUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_SIZE, size_of_block)
 
-        
-        // calculated position of vouts in global index
-        /* TODO below code has been disabled and should be enabled for extensive testing
-        index_pos := uint64(0)
-        if hash != globals.Config.Genesis_Block_Hash {
-           // load index pos from last block + add count of vouts from last block
-            index_pos = chain.Get_Block_Output_Index(bl.Prev_Hash)
-            vout_count_prev_block := chain.Block_Count_Vout(bl.Prev_Hash)
-            index_pos += vout_count_prev_block
-        }
-        chain.store.StoreUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_OUTPUT_INDEX, index_pos)
-        logger.Debugf("height %d   output index %d\n",height, index_pos)
-        */
-        
-	// TODO calculate total coins emitted till this block
+	// calculated position of vouts in global indexs
+	index_pos := uint64(0)
+	if hash != globals.Config.Genesis_Block_Hash {
+		// load index pos from last block + add count of vouts from last block
+		index_pos = chain.Get_Block_Output_Index(bl.Prev_Hash)
+		vout_count_prev_block := chain.Block_Count_Vout(bl.Prev_Hash)
+		index_pos += vout_count_prev_block
+	}
+	chain.store.StoreUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_OUTPUT_INDEX, index_pos)
+	//logger.Debugf("height %d   output index %d",height, index_pos)
+
+	total_fees := uint64(0)
+	for i := 0; i < len(bl.Tx_hashes); i++ {
+		tx, _ := chain.Load_TX_FROM_ID(bl.Tx_hashes[i])
+		total_fees += tx.RctSignature.Get_TX_Fee()
+	}
+
+	total_reward := bl.Miner_tx.Vout[0].Amount
+	base_reward := total_reward - total_fees
+	chain.store.StoreUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_BASEREWARD, base_reward)
+
+	already_generated_coins := uint64(0)
+	if hash != globals.Config.Genesis_Block_Hash { // genesis block has no parent
+		already_generated_coins = chain.Load_Already_Generated_Coins_for_BL_ID(bl.Prev_Hash)
+	} else {
+		base_reward = 1000000000000 // trigger the bug to fix coin calculation, see comments in emission
+	}
+	already_generated_coins += base_reward
+	chain.store.StoreUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_ALREADY_GENERATED_COINS, already_generated_coins)
 
 	// also extract and store the miner tx separetly, fr direct querying purpose
-	chain.Store_TX(&bl.Miner_tx)
+	chain.Store_TX(&bl.Miner_tx, height)
 
 	_ = err
 }
 
-func (chain *Blockchain) Load_TX_FROM_ID(hash [32]byte) (*Transaction, error) {
-	var tx Transaction
+func (chain *Blockchain) Load_TX_FROM_ID(hash [32]byte) (*transaction.Transaction, error) {
+	var tx transaction.Transaction
 	tx_data, err := chain.store.LoadObject(BLOCKCHAIN_UNIVERSE, GALAXY_TRANSACTION, hash[:], PLANET_TX_BLOB)
 
 	if err != nil {
@@ -287,19 +328,15 @@ func (chain *Blockchain) Load_TX_FROM_ID(hash [32]byte) (*Transaction, error) {
 	err = tx.DeserializeHeader(tx_data)
 
 	if err != nil {
-		logger.Printf("fError deserialiing tx, block id %x len(data) %d data %x\n", hash[:], len(tx_data), tx_data)
+		logger.Printf("fError deserialiing tx, block id %s len(data) %d data %x\n", hash[:], len(tx_data), tx_data)
 		return nil, err
 	}
 	return &tx, nil
 
 }
 
-func (chain *Blockchain) Load_TX_FROM_OO(Offset uint64) {
-
-}
-
-func (chain *Blockchain) Load_BL_FROM_ID(hash [32]byte) (*Block, error) {
-	var bl Block
+func (chain *Blockchain) Load_BL_FROM_ID(hash [32]byte) (*block.Block, error) {
+	var bl block.Block
 	block_data, err := chain.store.LoadObject(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_BLOB)
 
 	if err != nil {
@@ -314,7 +351,7 @@ func (chain *Blockchain) Load_BL_FROM_ID(hash [32]byte) (*Block, error) {
 	err = bl.Deserialize(block_data)
 
 	if err != nil {
-		logger.Warnf("fError deserialiing block, block id %x len(data) %d data %x\n", hash[:], len(block_data), block_data)
+		logger.Warnf("fError deserialiing block, block id %s len(data) %d data %x\n", hash[:], len(block_data), block_data)
 		return nil, err
 	}
 	return &bl, nil
@@ -348,10 +385,15 @@ func (chain *Blockchain) Store_BL_ID_at_Height(Height uint64, hash crypto.Hash) 
 }
 
 func (chain *Blockchain) Load_Height_for_BL_ID(hash crypto.Hash) (Height uint64) {
+
+	if hash == ZERO_HASH { // handle special case for  genesis
+		return 0
+	}
+
 	object_data, err := chain.store.LoadObject(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_HEIGHT)
 
 	if err != nil {
-		logger.Warnf("Error while querying height for block %x\n", hash)
+		logger.Warnf("Error while querying height for block %s\n", hash)
 		return
 	}
 
@@ -372,10 +414,9 @@ func (chain *Blockchain) Load_Height_for_BL_ID(hash crypto.Hash) (Height uint64)
 
 func (chain *Blockchain) Load_Block_Timestamp(hash crypto.Hash) uint64 {
 	timestamp, err := chain.store.LoadUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_TIMESTAMP)
-
 	if err != nil {
-		logger.Fatalf("Error while querying timestamp for block %x\n", hash)
-		panic("Error while querying timestamp for block")
+		logger.Warnf("Error while querying timestamp for block %s\n", hash)
+
 	}
 
 	return timestamp
@@ -385,11 +426,43 @@ func (chain *Blockchain) Load_Block_Cumulative_Difficulty(hash crypto.Hash) uint
 	cdifficulty, err := chain.store.LoadUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_CUMULATIVE_DIFFICULTY)
 
 	if err != nil {
-		logger.Panicf("Error while querying cumulative difficulty for block %x\n", hash)
-		
+		logger.Panicf("Error while querying cumulative difficulty for block %s\n", hash)
+
 	}
 
 	return cdifficulty
+}
+
+func (chain *Blockchain) Load_Block_Reward(hash crypto.Hash) uint64 {
+	timestamp, err := chain.store.LoadUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_BASEREWARD)
+	if err != nil {
+		logger.Warnf("Error while querying base_reward for block %s\n", hash)
+	}
+
+	return timestamp
+}
+
+func (chain *Blockchain) Load_Already_Generated_Coins_for_BL_ID(hash crypto.Hash) uint64 {
+
+	if hash == ZERO_HASH {
+		return 0
+	}
+	timestamp, err := chain.store.LoadUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_ALREADY_GENERATED_COINS)
+	if err != nil {
+		logger.Warnf("Error while querying alreadt generated coins for block %s\n", hash)
+
+	}
+
+	return timestamp
+}
+
+func (chain *Blockchain) Load_Block_Size(hash crypto.Hash) uint64 {
+	timestamp, err := chain.store.LoadUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_SIZE)
+	if err != nil {
+		logger.Warnf("Error while querying size for block %s\n", hash)
+	}
+
+	return timestamp
 }
 
 func (chain *Blockchain) Load_Block_Parent_ID(hash crypto.Hash) crypto.Hash {
@@ -397,8 +470,8 @@ func (chain *Blockchain) Load_Block_Parent_ID(hash crypto.Hash) crypto.Hash {
 	object_data, err := chain.store.LoadObject(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, hash[:], PLANET_PARENT)
 
 	if err != nil || len(object_data) != 32 {
-		logger.Panicf("Error while querying parent id for block %x\n", hash)
-		}
+		logger.Warnf("Error while querying parent id for block %s\n", hash)
+	}
 	copy(parent_id[:], object_data)
 
 	return parent_id
@@ -409,6 +482,7 @@ func (chain *Blockchain) Store_TOP_ID(hash crypto.Hash) {
 	chain.store.StoreObject(BLOCKCHAIN_UNIVERSE, TOP_ID, TOP_ID, TOP_ID, hash[:])
 }
 
+// crash if something is not correct
 func (chain *Blockchain) Load_TOP_ID() (hash crypto.Hash) {
 	object_data, err := chain.store.LoadObject(BLOCKCHAIN_UNIVERSE, TOP_ID, TOP_ID, TOP_ID)
 
@@ -434,22 +508,60 @@ func itob(v uint64) []byte {
 	return b
 }
 
-
-
 // get the position from where indexing must start for this block
 // indexing mean vout based index
 // cryptonote works by giving each vout a unique index
-func (chain *Blockchain)Get_Block_Output_Index(block_id crypto.Hash) uint64 {
-    if block_id == globals.Config.Genesis_Block_Hash { // genesis block has no output index
-		return 0 ; // counting starts from zero
+func (chain *Blockchain) Get_Block_Output_Index(block_id crypto.Hash) uint64 {
+	if block_id == globals.Config.Genesis_Block_Hash { // genesis block has no output index
+		return 0 // counting starts from zero
 	}
-    
-    index, err := chain.store.LoadUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, block_id[:], PLANET_OUTPUT_INDEX)
-    if err != nil {
-        // TODO  this panic must be enabled to catch some bugs
-        panic(fmt.Errorf("Cannot load output index for %x err %s", block_id, err))
-        return 0
-    }
-    
-    return index
+
+	index, err := chain.store.LoadUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, block_id[:], PLANET_OUTPUT_INDEX)
+	if err != nil {
+		// TODO  this panic must be enabled to catch some bugs
+		logger.Warnf("Cannot load output index for %s err %s", block_id, err)
+		return 0
+	}
+
+	return index
+}
+
+// store key image to its own galaxy
+// a keyimage stored with value 1  == it has been consumed
+// a keyimage stored with value 0  == it has not been consumed
+// a key image not found in store == it has NOT been consumed
+func (chain *Blockchain) Store_KeyImage(hash crypto.Hash, mark bool) {
+	store_value := byte(0)
+	if mark {
+		store_value = byte(1)
+	}
+	chain.store.StoreObject(BLOCKCHAIN_UNIVERSE, GALAXY_KEYIMAGE, GALAXY_KEYIMAGE, hash[:], []byte{store_value})
+}
+
+// read a key image, whether it's stored with value 1
+// a keyimage stored with value 1  == it has been consumed
+// a keyimage stored with value 0  == it has not been consumed
+// a key image not found in store == it has NOT been consumed
+func (chain *Blockchain) Read_KeyImage_Status(hash crypto.Hash) bool {
+	object_data, err := chain.store.LoadObject(BLOCKCHAIN_UNIVERSE, GALAXY_KEYIMAGE, GALAXY_KEYIMAGE, hash[:])
+
+	if err != nil {
+		return false
+	}
+
+	if len(object_data) == 0 {
+		return false
+	}
+
+	if len(object_data) != 1 {
+		panic(fmt.Errorf("probably Database corruption, Wrong data stored in keyimage, expected size 1, actual size %d", len(object_data)))
+	}
+
+	if object_data[0] == 1 {
+		return true
+	}
+
+	// anything other than value 1 is considered wrong keyimage
+
+	return false
 }

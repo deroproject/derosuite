@@ -1,3 +1,19 @@
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 package address
 
 import "fmt"
@@ -6,8 +22,6 @@ import "testing"
 import "encoding/hex"
 
 import "github.com/deroproject/derosuite/config"
-
-
 
 func TestAddressError(t *testing.T) {
 	_, err := NewAddress("")
@@ -24,9 +38,9 @@ func TestAddressError(t *testing.T) {
 }
 
 func TestAddress(t *testing.T) {
-    
-        const Monero_MainNetwork = 18
-        const Monero_TestNetwork = 53
+
+	const Monero_MainNetwork = 18
+	const Monero_TestNetwork = 53
 
 	tests := []struct {
 		name           string
@@ -101,12 +115,12 @@ func TestAddress(t *testing.T) {
 			continue
 		}
 
-		if bytes.Compare(address.SpendingKey, spendingKey) != 0 {
-			t.Errorf("%s: want: %x, got: %x", test.name, spendingKey, address.SpendingKey)
+		if bytes.Compare(address.SpendKey[:], spendingKey) != 0 {
+			t.Errorf("%s: want: %x, got: %x", test.name, spendingKey, address.SpendKey)
 			continue
 		}
-		if bytes.Compare(address.ViewingKey, viewingKey) != 0 {
-			t.Errorf("%s: want: %x, got: %x", test.name, viewingKey, address.ViewingKey)
+		if bytes.Compare(address.ViewKey[:], viewingKey) != 0 {
+			t.Errorf("%s: want: %x, got: %x", test.name, viewingKey, address.ViewKey)
 			continue
 		}
 

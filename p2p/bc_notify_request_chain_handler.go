@@ -1,13 +1,25 @@
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 package p2p
-
-
 
 import "github.com/romana/rlog"
 
 import "github.com/deroproject/derosuite/globals"
 import "github.com/deroproject/derosuite/crypto"
-
-
 
 // when 2 peers communiate either both are in sync or async
 // if async, reply to the request below, with your state and other will supply you  list of block ids
@@ -54,7 +66,7 @@ func Handle_BC_Notify_Chain(connection *Connection,
 
 		block_list = append(block_list, bhash)
 
-		rlog.Tracef(5,"%2d hash  %x\n", i, bhash[:])
+		rlog.Tracef(5, "%2d hash  %x\n", i, bhash[:])
 
 	}
 
@@ -74,7 +86,7 @@ func Handle_BC_Notify_Chain(connection *Connection,
 	for i := 0; i < len(block_list); i++ { // find the common point in our chain
 		if chain.Block_Exists(block_list[i]) {
 			start_height = chain.Load_Height_for_BL_ID(block_list[i])
-			rlog.Tracef(4,"Found common point in chain at hash %x\n", block_list[i])
+			rlog.Tracef(4, "Found common point in chain at hash %x\n", block_list[i])
 			break
 		}
 	}
@@ -93,7 +105,7 @@ func Handle_BC_Notify_Chain(connection *Connection,
 		block_list = append(block_list, hash)
 	}
 
-	rlog.Tracef(2,"Prepared list of %d block header to send \n", len(block_list))
+	rlog.Tracef(2, "Prepared list of %d block header to send \n", len(block_list))
 
 	Send_BC_Notify_Response_Chain_Entry(connection, block_list, start_height, chain.Get_Height(), 1)
 

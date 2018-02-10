@@ -1,3 +1,19 @@
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 package p2p
 
 import "io"
@@ -7,14 +23,12 @@ import "time"
 import "testing"
 import "container/list"
 import "encoding/binary"
+import "runtime/debug"
 
 import "github.com/romana/rlog"
 import log "github.com/sirupsen/logrus"
 
 import "github.com/deroproject/derosuite/globals"
-
-
-
 
 // all communications flow in little endian
 const LEVIN_SIGNATURE = 0x0101010101012101 //Bender's nightmare
@@ -60,11 +74,8 @@ func Handle_Connection(conn net.Conn, remote_addr *net.TCPAddr, incoming bool) {
 	connection.Incoming = incoming
 	connection.Conn = conn
 	var idle int
-	
-	
-	
-	
-	connection.Addr = remote_addr //  since we may be connecting via socks, get target IP
+
+	connection.Addr = remote_addr         //  since we may be connecting via socks, get target IP
 	connection.Command_queue = list.New() // init command queue
 	connection.State = HANDSHAKE_PENDING
 	if incoming {
@@ -72,16 +83,18 @@ func Handle_Connection(conn net.Conn, remote_addr *net.TCPAddr, incoming bool) {
 	} else {
 		connection.logger = logger.WithFields(log.Fields{"RIP": remote_addr.String(), "DIR": "OUT"})
 	}
-	
+
 	defer func() {
-        if r := recover(); r != nil {
-            connection.logger.Fatalf("Recovered while handling connection", r)
-        }
-        }()
+		if r := recover(); r != nil {
+			connection.logger.Warnf("Recovered while handling connection, Stack trace below", r)
+			connection.logger.Warnf("Stack trace  \n%s", debug.Stack())
+
+		}
+	}()
 
 	Connection_Add(&connection) // add connection to pool
 	if !incoming {
-		Send_Handshake(&connection) 	// send handshake
+		Send_Handshake(&connection) // send handshake
 	}
 
 	// goroutine to exit the connection if signalled
@@ -115,14 +128,14 @@ func Handle_Connection(conn net.Conn, remote_addr *net.TCPAddr, incoming bool) {
 		}
 	}()
 
-	for { 
+	for {
 		if connection.Exit {
 			connection.logger.Debugf("Connection exited")
 			conn.Close()
 			return
 		}
 
-                // wait and read header
+		// wait and read header
 		header_data := make([]byte, 33, 33) // size of levin header
 		idle = 0
 		rlog.Tracef(10, "waiting to read header bytes from network %s\n", globals.CTXString(connection.logger))
@@ -195,8 +208,8 @@ func Handle_Connection(conn net.Conn, remote_addr *net.TCPAddr, incoming bool) {
 				// if response is OK, mark conncection as good and add it to list
 
 			case P2P_COMMAND_TIMED_SYNC: // we never send timed response
-                               // connection.logger.Infof("Response for timed sync arrived")
-                                Handle_P2P_Timed_Sync_Response(&connection, &levin_header, data)
+				// connection.logger.Infof("Response for timed sync arrived")
+				Handle_P2P_Timed_Sync_Response(&connection, &levin_header, data)
 
 			case P2P_COMMAND_PING: // we never send ping packets
 

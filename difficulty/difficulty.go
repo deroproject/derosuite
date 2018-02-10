@@ -1,5 +1,20 @@
-package difficulty
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+package difficulty
 
 import "fmt"
 import "math/big"
@@ -19,6 +34,10 @@ var (
 	// oneLsh256 is 1 shifted left 256 bits.  It is defined here to avoid
 	// the overhead of creating it multiple times.
 	oneLsh256 = new(big.Int).Lsh(bigOne, 256)
+
+	// enabling this will simulation mode with hard coded difficulty set to 1
+	// the variable is knowingly not exported, so no one can tinker with it
+	simulation = false // simulation mode is disabled
 )
 
 // HashToBig converts a PoW has into a big.Int that can be used to
@@ -60,6 +79,10 @@ func CheckPowHash(pow_hash crypto.Hash, difficulty uint64) bool {
 func Next_Difficulty(timestamps []uint64, cumulative_difficulty []uint64, target_seconds uint64) (difficulty uint64) {
 
 	difficulty = 1 // default difficulty is 1 // for genesis block
+
+	if simulation == true { // simulation mode has difficulty set to 1
+		return 1
+	}
 
 	if len(timestamps) > config.DIFFICULTY_BLOCKS_COUNT_V2 {
 		panic("More timestamps provided than required")

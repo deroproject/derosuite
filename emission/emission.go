@@ -1,11 +1,26 @@
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 package emission
 
-
-import "fmt"
+//import "fmt"
 import "math/big"
 import "github.com/deroproject/derosuite/config"
 
-
+//TODO trickling code  is note implemented still, but we do NOT require it atleast for another 7-8 years
 
 // the logic is same as cryptonote_basic_impl.cpp
 
@@ -45,8 +60,6 @@ func GetBlockReward(bl_median_size uint64,
 
 	if bl_current_size <= bl_median_size {
 		reward = base_reward
-
-		fmt.Printf("Retunring base reward\n")
 		return reward
 	}
 
@@ -54,7 +67,7 @@ func GetBlockReward(bl_median_size uint64,
 	if bl_current_size > 2*bl_median_size {
 		//MERROR("Block cumulative size is too big: " << current_block_size << ", expected less than " << 2 * median_size);
 		panic("Block size is too big\n")
-		return
+		//return 0xffffffff00000000
 	}
 
 	//panic("This mode of base reward calculation is not yet implemented\n")
@@ -69,12 +82,10 @@ func GetBlockReward(bl_median_size uint64,
 	big_multiplicand.SetUint64(multiplicand)
 
 	big_product.Mul(&big_base_reward, &big_multiplicand)
-	big_reward.Div(&big_product, &big_median_size)
-	big_product.Set(&big_reward)
-	big_reward.Div(&big_product, &big_median_size)
 
+	big_reward.Div(&big_product, &big_median_size)
+	big_reward.Div(&big_reward, &big_median_size)
 	// lower 64 bits contains the reward
-
 	if !big_reward.IsUint64() {
 		panic("GetBlockReward has issues\n")
 	}

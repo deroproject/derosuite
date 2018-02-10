@@ -1,28 +1,23 @@
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 package crypto
 
 import "testing"
 import "encoding/hex"
-
-
-
-// convert a hex string to a key
-func HexToKey(h string) (result Key) {
-	byteSlice, _ := hex.DecodeString(h)
-        if len(byteSlice) != 32 {
-            panic("Incorrect key size")
-        }
-	copy(result[:], byteSlice)
-	return
-}
-
-func HexToHash(h string) (result Hash) {
-	byteSlice, _ := hex.DecodeString(h)
-        if len(byteSlice) != 32 {
-            panic("Incorrect key size")
-        }
-	copy(result[:], byteSlice)
-	return
-}
 
 func TestKeccak256(t *testing.T) {
 	tests := []struct {
@@ -50,7 +45,6 @@ func TestKeccak256(t *testing.T) {
 			messageHex: "0f3fe9c20b24a11bf4d6d1acd335c6a80543f1f0380590d7323caf1390c78e88",
 			wantHex:    "73b7a236f2a97c4e1805f7a319f1283e3276598567757186c526caf9a49e0a92",
 		},
-
 	}
 	for _, test := range tests {
 		message, _ := hex.DecodeString(test.messageHex)

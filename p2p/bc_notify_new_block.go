@@ -1,18 +1,35 @@
-package p2p
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+package p2p
 
 import "bytes"
 import "encoding/binary"
 
 import "github.com/romana/rlog"
 
-import "github.com/deroproject/derosuite/blockchain"
+import "github.com/deroproject/derosuite/block"
+import "github.com/deroproject/derosuite/transaction"
 
 // FIXME this code can also be shared by NOTIFY_NEW_BLOCK, NOTIFY_NEW_TRANSACTIONS, Handle_BC_Notify_Response_GetObjects
 // this code handles a new block floating in the network
 func Handle_BC_Notify_New_Block(connection *Connection,
 	i_command_header *Levin_Header, buf []byte) {
-	var bl blockchain.Block
+	var bl block.Block
+	var cbl block.Complete_Block
 
 	connection.logger.Debugf("Incoming NOTIFY_NEW_BLOCK")
 
@@ -68,7 +85,7 @@ func Handle_BC_Notify_New_Block(connection *Connection,
 
 		for i := uint64(0); i < tx_count; i++ {
 
-			var tx blockchain.Transaction
+			var tx transaction.Transaction
 
 			tx_len, done := Decode_Boost_Varint(buf)
 			buf = buf[done:]
@@ -89,7 +106,8 @@ func Handle_BC_Notify_New_Block(connection *Connection,
 
 				// add tx to block chain, we must verify that the tx has been mined
 				// add all transaction to TX pool , if not added
-				chain.Add_TX(&tx)
+				//chain.Add_TX(&tx)
+				cbl.Txs = append(cbl.Txs, &tx)
 			}
 
 			buf = buf[tx_len:] // setup for next tx
@@ -115,7 +133,10 @@ func Handle_BC_Notify_New_Block(connection *Connection,
 
 	// at this point, if it's a block we should try to add it to block chain
 	// try to add block to chain
-	connection.logger.Debugf("Found new  block adding it to chain %x", bl.GetHash())
-	chain.Chain_Add(&bl)
+	connection.logger.Debugf("Found new  block adding it to chain %s", bl.GetHash())
+
+	// TODO check returned status, either drop connection or replay
+	cbl.Bl = &bl
+	chain.Add_Complete_Block(&cbl)
 
 }

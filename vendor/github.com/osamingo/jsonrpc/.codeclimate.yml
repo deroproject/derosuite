@@ -1,0 +1,14 @@
+version: "2"
+engines:
+  gofmt:
+    enabled: true
+  govet:
+    enabled: true
+  golint:
+    enabled: true
+ratings:
+  paths:
+    - "*.go"
+exclude_paths:
+  - vendor/
+  - "*_test.go"

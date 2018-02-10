@@ -1,14 +1,27 @@
-package p2p
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+package p2p
 
 import "bytes"
 
 import "github.com/romana/rlog"
 
-import "github.com/deroproject/derosuite/blockchain"
-
-
-
+//import "github.com/deroproject/derosuite/blockchain"
+import "github.com/deroproject/derosuite/transaction"
 
 // if the incoming blob contains block with included transactions
 //00009F94  01 11 01 01 01 01 02 01  01 08 06 62 6c 6f 63 6b   ........ ...block
@@ -57,7 +70,7 @@ func Handle_BC_Notify_New_Transactions(connection *Connection,
 
 		for i := uint64(0); i < tx_count; i++ {
 
-			var tx blockchain.Transaction
+			var tx transaction.Transaction
 
 			tx_len, done := Decode_Boost_Varint(buf)
 			buf = buf[done:]
@@ -81,6 +94,9 @@ func Handle_BC_Notify_New_Transactions(connection *Connection,
 
 				//chain.Add_TX(&tx)
 				// we should add TX to pool
+
+				// TODO check return status, then either replay tx,ignore tx or discard the connection
+				chain.Add_TX_To_Pool(&tx)
 			}
 
 			buf = buf[tx_len:] // setup for next tx

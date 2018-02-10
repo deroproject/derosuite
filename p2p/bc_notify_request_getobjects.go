@@ -1,5 +1,20 @@
-package p2p
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+package p2p
 
 import "fmt"
 import "bytes"
@@ -8,10 +23,7 @@ import "encoding/binary"
 import "github.com/romana/rlog"
 
 import "github.com/deroproject/derosuite/crypto"
-import "github.com/deroproject/derosuite/blockchain"
-
-
-
+import "github.com/deroproject/derosuite/block"
 
 // The peer triggers this it wants some blocks or txs
 func Handle_BC_Notify_Request_GetObjects(connection *Connection,
@@ -42,14 +54,14 @@ func Handle_BC_Notify_Request_GetObjects(connection *Connection,
 		if data_length == 0 {
 			rlog.Tracef(4, "Peer says it does not have even genesis block, so disconnect")
 			connection.Exit = true
-		        return
+			return
 		}
 		rlog.Tracef(4, "Data size %d", data_length)
 
 		if (data_length % 32) != 0 { // sanity check
 			rlog.Tracef(4, "We should destroy connection here, packet mismatch")
 			connection.Exit = true
-		        return
+			return
 		}
 
 		rlog.Tracef(4, "Number of hashes %d tmp_slice %x \n", data_length/32, tmp_slice[:32])
@@ -62,7 +74,7 @@ func Handle_BC_Notify_Request_GetObjects(connection *Connection,
 
 			block_list = append(block_list, bhash)
 
-			rlog.Tracef(4,"%2d hash  %x\n", i, bhash[:])
+			rlog.Tracef(4, "%2d hash  %x\n", i, bhash[:])
 
 		}
 
@@ -70,7 +82,7 @@ func Handle_BC_Notify_Request_GetObjects(connection *Connection,
 
 		/*if len(block_list) == 1 {
 			Send_Single_Block_to_Peer(connection, block_list[0])
-		} else*/ { // we need to send al blocks in 1 go
+		} else*/{ // we need to send al blocks in 1 go
 			Send_Blocks_to_Peer(connection, block_list)
 
 		}
@@ -116,7 +128,7 @@ func boost_serialisation_block(hash crypto.Hash) []byte {
 			tx, err := chain.Load_TX_FROM_ID(bl.Tx_hashes[i])
 
 			if err != nil {
-				rlog.Tracef(1,"ERR Cannot load tx from DB\n")
+				rlog.Tracef(1, "ERR Cannot load tx from DB\n")
 				return block_header
 			}
 
@@ -196,7 +208,7 @@ trailer
 */
 
 // if a block is with out TX, send it in this format
-func Send_Block_with_ZERO_TX(connection *Connection, bl *blockchain.Block) {
+func Send_Block_with_ZERO_TX(connection *Connection, bl *block.Block) {
 	fmt.Printf("sending block with zero tx")
 
 	header := []byte{0x01, 0x11, 0x01, 0x01, 0x01, 0x01, 0x02, 0x01, 0x01, 0x08, 0x06, 0x62, 0x6c, 0x6f, 0x63, 0x6b,
@@ -231,7 +243,7 @@ func Send_Block_with_ZERO_TX(connection *Connection, bl *blockchain.Block) {
 }
 
 // if a block is with TX, send it in this format
-func Send_Block_with_TX(connection *Connection, bl *blockchain.Block) {
+func Send_Block_with_TX(connection *Connection, bl *block.Block) {
 
 	panic("Sending block with TX not implmented\n")
 }

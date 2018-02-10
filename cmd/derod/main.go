@@ -1,3 +1,19 @@
+// Copyright 2017-2018 DERO Project. All rights reserved.
+// Use of this source code in any form is governed by RESEARCH license.
+// license can be found in the LICENSE file.
+// GPG: 0F39 E425 8C65 3947 702A  8234 08B2 0360 A03A 9DE8
+//
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
+// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+// MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+// THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
+// THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 package main
 
 import "io"
@@ -5,8 +21,10 @@ import "os"
 import "time"
 import "fmt"
 import "bytes"
+import "bufio"
 import "strings"
 import "strconv"
+import "runtime"
 import "encoding/hex"
 import "encoding/json"
 import "path/filepath"
@@ -18,15 +36,19 @@ import log "github.com/sirupsen/logrus"
 import "github.com/deroproject/derosuite/p2p"
 import "github.com/deroproject/derosuite/globals"
 import "github.com/deroproject/derosuite/blockchain"
+
+//import "github.com/deroproject/derosuite/checkpoints"
 import "github.com/deroproject/derosuite/crypto"
+import "github.com/deroproject/derosuite/crypto/ringct"
+import "github.com/deroproject/derosuite/blockchain/rpcserver"
 
-
+//import "github.com/deroproject/derosuite/address"
 
 var command_line string = `derod 
 DERO : A secure, private blockchain with smart-contracts
 
 Usage:
-  derod [--help] [--version] [--testnet] [--debug] [--socks-proxy=<socks_ip:port>] [--p2p-bind-port=<18090>] [--add-exclusive-node=<ip:port>]...
+  derod [--help] [--version] [--testnet] [--debug] [--disable-checkpoints] [--socks-proxy=<socks_ip:port>]  [--p2p-bind-port=<18090>] [--add-exclusive-node=<ip:port>]...
   derod -h | --help
   derod --version
 
@@ -35,6 +57,7 @@ Options:
   --version     Show version.
   --testnet  	Run in testnet mode.
   --debug       Debug mode enabled, print log messages
+  --disable-checkpoints  Disable checkpoints, work in truly async, slow mode 1 block at a time
   --socks-proxy=<socks_ip:port>  Use a proxy to connect to network.
   --p2p-bind-port=<18090>    p2p server listens on this port.
   --add-exclusive-node=<ip:port>	Connect to this peer only (disabled for this version)`
@@ -76,18 +99,27 @@ func main() {
 	globals.Logger.Debugf("Arguments %+v", globals.Arguments)
 
 	globals.Logger.Infof("DERO daemon :  This version is under heavy development, use it for testing/evaluations purpose only")
+	globals.Logger.Infof("Copyright 2017-2018 DERO Project. All rights reserved.")
+	globals.Logger.Infof("OS:%s ARCH:%s GOMAXPROCS:%d", runtime.GOOS, runtime.GOARCH, runtime.GOMAXPROCS(0))
+
 	globals.Logger.Infof("Daemon in %s mode", globals.Config.Name)
 
-	chain, _ := blockchain.Blockchain_Start(nil)
 	params := map[string]interface{}{}
+
+	params["--disable-checkpoints"] = globals.Arguments["--disable-checkpoints"].(bool)
+	chain, _ := blockchain.Blockchain_Start(params)
+
 	params["chain"] = chain
 	p2p.P2P_Init(params)
+
+	rpc, _ := rpcserver.RPCServer_Start(params)
 
 	// This tiny goroutine continuously updates status as required
 	go func() {
 		last_our_height := uint64(0)
 		last_best_height := uint64(0)
 		last_peer_count := uint64(0)
+		last_mempool_tx_count := 0
 		for {
 			if globals.Exit_In_Progress {
 				return
@@ -95,9 +127,10 @@ func main() {
 			our_height := chain.Get_Height()
 			best_height := p2p.Best_Peer_Height()
 			peer_count := p2p.Peer_Count()
+			mempool_tx_count := len(chain.Mempool.Mempool_List_TX())
 
 			// only update prompt if needed
-			if last_our_height != our_height || last_best_height != best_height || last_peer_count != peer_count {
+			if last_our_height != our_height || last_best_height != best_height || last_peer_count != peer_count || last_mempool_tx_count != mempool_tx_count {
 				// choose color based on urgency
 				color := "\033[32m" // default is green color
 				if our_height < best_height {
@@ -112,11 +145,12 @@ func main() {
 				} else if peer_count <= 8 {
 					pcolor = "\033[33m" // make prompt yellow
 				}
-				l.SetPrompt(fmt.Sprintf("\033[1m\033[32mDERO: \033[0m"+color+"%d/%d "+pcolor+"P %d\033[32m>>>\033[0m ", our_height, best_height, peer_count))
+				l.SetPrompt(fmt.Sprintf("\033[1m\033[32mDERO: \033[0m"+color+"%d/%d "+pcolor+"P %d TXp %d\033[32m>>>\033[0m ", our_height, best_height, peer_count, mempool_tx_count))
 				l.Refresh()
 				last_our_height = our_height
 				last_best_height = best_height
 				last_peer_count = peer_count
+				last_mempool_tx_count = mempool_tx_count
 			}
 			time.Sleep(1 * time.Second)
 		}
@@ -134,7 +168,6 @@ func main() {
 		line, err := l.Readline()
 		if err == readline.ErrInterrupt {
 			if len(line) == 0 {
-
 				fmt.Print("Ctrl-C received, Exit in progress\n")
 				globals.Exit_In_Progress = true
 				break
@@ -255,7 +288,7 @@ func main() {
 
 				fmt.Printf("height: %10d, timestamp: %10d, difficulty: %12d\n", i, timestamp, diff)
 
-				fmt.Printf("Block Id: %x , prev block id:%x\n", current_block_id, parent_block_id)
+				fmt.Printf("Block Id: %s , prev block id:%s\n", current_block_id, parent_block_id)
 				fmt.Printf("\n")
 
 			}
@@ -271,11 +304,11 @@ func main() {
 				}
 				var hash crypto.Hash
 				copy(hash[:32], []byte(txid))
-				fmt.Printf("block id: %x\n", hash[:])
+				fmt.Printf("block id: %s\n", hash[:])
 
 				bl, err := chain.Load_BL_FROM_ID(hash)
 				if err == nil {
-					fmt.Printf("Block : %x\n", bl.Serialize())
+					fmt.Printf("Block : %s\n", bl.Serialize())
 				} else {
 					fmt.Printf("Err %s\n", err)
 				}
@@ -286,8 +319,8 @@ func main() {
 					if err == nil {
 						bl, err := chain.Load_BL_FROM_ID(hash)
 						if err == nil {
-							fmt.Printf("block id: %x\n", hash[:])
-							fmt.Printf("Block : %x\n", bl.Serialize())
+							fmt.Printf("block id: %s\n", hash[:])
+							fmt.Printf("Block : %s\n", bl.Serialize())
 
 							json_bytes, err := json.Marshal(bl)
 
@@ -323,6 +356,10 @@ func main() {
 					_ = err
 					fmt.Printf("%s\n", string(json_bytes))
 
+					tx.RctSignature.Message = ringct.Key(tx.GetPrefixHash())
+					ringct.Get_pre_mlsag_hash(tx.RctSignature)
+					chain.Expand_Transaction_v2(tx)
+
 				} else {
 					fmt.Printf("Err %s\n", err)
 				}
@@ -330,13 +367,13 @@ func main() {
 				fmt.Printf("print_tx  needs a single transaction id as arugument\n")
 			}
 		case strings.ToLower(line) == "diff":
-			fmt.Printf("Network %s BH %d, Diff %d, NW Hashrate %0.03f MH/sec  TH %x\n", globals.Config.Name, chain.Get_Height(), chain.Get_Difficulty(), float64(chain.Get_Network_HashRate())/1000000.0, chain.Get_Top_ID())
+			fmt.Printf("Network %s BH %d, Diff %d, NW Hashrate %0.03f MH/sec  TH %s\n", globals.Config.Name, chain.Get_Height(), chain.Get_Difficulty(), float64(chain.Get_Network_HashRate())/1000000.0, chain.Get_Top_ID())
 
 		case strings.ToLower(line) == "status":
 			// fmt.Printf("chain diff %d\n",chain.Get_Difficulty_At_Block(chain.Top_ID))
 			//fmt.Printf("chain nw rate %d\n", chain.Get_Network_HashRate())
-                        inc, out := p2p.Peer_Direction_Count()
-			fmt.Printf("Network %s Height %d  NW Hashrate %0.03f MH/sec  TH %x Peers %d INC, %d OUT\n", globals.Config.Name, chain.Get_Height(), float64(chain.Get_Network_HashRate())/1000000.0, chain.Get_Top_ID(), inc,out )
+			inc, out := p2p.Peer_Direction_Count()
+			fmt.Printf("Network %s Height %d  NW Hashrate %0.03f MH/sec  TH %s Peers %d inc, %d out  MEMPOOL size %d\n", globals.Config.Name, chain.Get_Height(), float64(chain.Get_Network_HashRate())/1000000.0, chain.Get_Top_ID(), inc, out, len(chain.Mempool.Mempool_List_TX()))
 		case strings.ToLower(line) == "sync_info":
 			p2p.Connection_Print()
 		case strings.ToLower(line) == "bye":
@@ -345,6 +382,41 @@ func main() {
 			fallthrough
 		case strings.ToLower(line) == "quit":
 			goto exit
+		case strings.ToLower(line) == "checkpoints": // save all knowns block id
+			var block_id crypto.Hash
+			name := "mainnet_checkpoints.dat"
+			if !globals.IsMainnet() {
+				name = "testnet_checkpoints.dat"
+			}
+			filename := filepath.Join(os.TempDir(), name)
+
+			// create output filen
+			f, err := os.Create(filename)
+			if err != nil {
+				globals.Logger.Warnf("error creating new file %s", err)
+				continue
+			}
+			w := bufio.NewWriter(f)
+			chain.Lock() // we do not want any reorgs during this op
+			height := chain.Get_Height()
+			for i := uint64(0); i < height; i++ {
+
+				block_id, err = chain.Load_BL_ID_at_Height(i)
+				if err != nil {
+					break
+				}
+				w.Write(block_id[:])
+			}
+			if err != nil {
+				globals.Logger.Warnf("error writing checkpoints err: %s", err)
+			} else {
+				globals.Logger.Infof("Successfully wrote %d checkpoints to file %s", height, filename)
+			}
+
+			w.Flush() // flush everything
+			f.Close()
+
+			chain.Unlock()
 		case line == "sleep":
 			log.Println("sleep 4 second")
 			time.Sleep(4 * time.Second)
@@ -357,6 +429,8 @@ exit:
 
 	globals.Logger.Infof("Exit in Progress, Please wait")
 	time.Sleep(100 * time.Millisecond) // give prompt update time to finish
+
+	rpc.RPCServer_Stop()
 
 	p2p.P2P_Shutdown() // shutdown p2p subsystem
 	chain.Shutdown()   // shutdown chain subsysem
@@ -376,18 +450,18 @@ func prettyprint_json(b []byte) []byte {
 func usage(w io.Writer) {
 	io.WriteString(w, "commands:\n")
 	//io.WriteString(w, completer.Tree("    "))
-        io.WriteString(w,"\t\033[1mhelp\033[0m\t\tthis help\n")
-        io.WriteString(w,"\t\033[1mdiff\033[0m\t\tShow difficulty\n")
-        io.WriteString(w,"\t\033[1mprint_bc\033[0m\tPrint blockchain info in a given blocks range, print_bc <begin_height> <end_height>\n")
-        io.WriteString(w,"\t\033[1mprint_block\033[0m\tPrint block, print_block <block_hash> or <block_height>\n")
-        io.WriteString(w,"\t\033[1mprint_height\033[0m\tPrint local blockchain height\n")
-        io.WriteString(w,"\t\033[1mprint_tx\033[0m\tPrint transaction, print_tx <transaction_hash>\n")
-        io.WriteString(w,"\t\033[1mstatus\033[0m\t\tShow genereal information\n")
-        io.WriteString(w,"\t\033[1msync_info\033[0m\tPrint information about connected peers and their state\n")
-        io.WriteString(w,"\t\033[1mbye\033[0m\t\tQuit the daemon\n")
-        io.WriteString(w,"\t\033[1mexit\033[0m\t\tQuit the daemon\n")
-        io.WriteString(w,"\t\033[1mquit\033[0m\t\tQuit the daemon\n")
-        
+	io.WriteString(w, "\t\033[1mhelp\033[0m\t\tthis help\n")
+	io.WriteString(w, "\t\033[1mdiff\033[0m\t\tShow difficulty\n")
+	io.WriteString(w, "\t\033[1mprint_bc\033[0m\tPrint blockchain info in a given blocks range, print_bc <begin_height> <end_height>\n")
+	io.WriteString(w, "\t\033[1mprint_block\033[0m\tPrint block, print_block <block_hash> or <block_height>\n")
+	io.WriteString(w, "\t\033[1mprint_height\033[0m\tPrint local blockchain height\n")
+	io.WriteString(w, "\t\033[1mprint_tx\033[0m\tPrint transaction, print_tx <transaction_hash>\n")
+	io.WriteString(w, "\t\033[1mstatus\033[0m\t\tShow genereal information\n")
+	io.WriteString(w, "\t\033[1msync_info\033[0m\tPrint information about connected peers and their state\n")
+	io.WriteString(w, "\t\033[1mbye\033[0m\t\tQuit the daemon\n")
+	io.WriteString(w, "\t\033[1mexit\033[0m\t\tQuit the daemon\n")
+	io.WriteString(w, "\t\033[1mquit\033[0m\t\tQuit the daemon\n")
+
 }
 
 var completer = readline.NewPrefixCompleter(
@@ -421,7 +495,7 @@ var completer = readline.NewPrefixCompleter(
 	readline.PcItem("print_block"),
 	readline.PcItem("print_height"),
 	readline.PcItem("print_tx"),
-        readline.PcItem("status"),
+	readline.PcItem("status"),
 	readline.PcItem("sync_info"),
 	readline.PcItem("bye"),
 	readline.PcItem("exit"),

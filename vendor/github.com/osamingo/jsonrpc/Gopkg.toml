@@ -1,0 +1,7 @@
+[[constraint]]
+  branch = "master"
+  name = "github.com/alecthomas/jsonschema"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/intel-go/fastjson"
