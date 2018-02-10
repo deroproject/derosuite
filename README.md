@@ -1,9 +1,8 @@
 # DERO: Secure, Private Blockchain with Smart Contracts
 
-## DERO Project :  Cryptonote + Smart contracts 
+## DERO Project :  Cryptonote Privacy + Smart contracts 
 
-DERO blockchain is a complete new blockchain supporting CryptoNote Privacy and Smart Contracts.
-DERO blockchain is being implemented in Golang.
+DERO blockchain is a completely new blockchain supporting CryptoNote Privacy and Smart Contracts. DERO blockchain is being implemented in Golang.
 
 We are pleased to announce Status Update Release 2 of DERO Blockchain.
 Release 2 include following:
@@ -11,7 +10,7 @@ Release 2 include following:
 2. Dero wallet both offline and online 
 3. Dero Explorer 
 
-** NOTE: All above are strictly for evaluation and have limitations, see below for more details.**
+**NOTE: All above are strictly for evaluation and have limitations, see below for more details.**
 
 | Operating System | Download                                 |
 | ---------------- | ---------------------------------------- |
@@ -29,42 +28,44 @@ Release 2 include following:
 
 **NOTE: DO NOT MIGRATE to this daemon. This is strictly for evaluation.**
 
-DERO Daemon\
+**DERO Daemon in action**\
 ![Status-Update-Release-2 DERO Daemon](http://seeds.dero.io/images/derod.png)\
-DERO Wallet\
+
+**DERO Wallet in action**\
 ![Status-Update-Release-2 DERO Wallet](http://seeds.dero.io/images/dero_wallet_offline.png)\
-DERO Explorer\
-![Status-Update-Release-2 DERO Explorer](http://seeds.dero.io/images/dero_explorer.png)\
+
+**DERO Explorer in action**\
+![Status-Update-Release-2 DERO Explorer](http://seeds.dero.io/images/dero_explorer.png)
 
 In the status update release 2,  Golang DERO daemon can sync and verify blockchain and show users their wallet balance with the existing DERO network. This update marks the release of
 
-1. **Dero Wallet** : The new version of wallet has easy to use menu-driven interface. The new wallet has ability to work in both on-line and completely off-line modes. 
+1. **DERO Wallet** : DERO Golang version of wallet has easy to use menu-driven interface. Dero wallet can be used in both on-line and completely off-line modes. 
   It can be used to 
-      1. create new accounts,
-      2. check balance,
-      3. display and  recover using recovery seeds, ( 25 words). The seeds are compatible with existing wallet.
-      4. 11 languages are supported for recovery seeds 
-               1. English,
-               2. Japanese (日本語)
-            3. Chinese_Simplified(简体中文 (中国)),
-            4. Dutch (Nederlands),
-            5. Esperanto ,
-            6. Russian (русский язык),
-            7. Spanish (Español),
-            8. Portuguese (Português),
-            9. French (Français),
-            10. German (Deutsch),
-            11. Italian (Italiano),
+ - create new accounts,
+ - check balance,
+ - display and  recover using recovery seeds, ( 25 words). The seeds are compatible with existing wallet.
+ - Eleven languages are supported for recovery seeds 
+    - English,
+    - Japanese (日本語)
+    - Chinese_Simplified(简体中文 (中国)),
+    - Dutch (Nederlands),
+    - Esperanto ,
+    - Russian (русский язык),
+    - Spanish (Español),
+    - Portuguese (Português),
+    - French (Français),
+    - German (Deutsch),
+    - Italian (Italiano),
 
 
-      4. display and  recover using recovery key (64 hex chars)
-      5. view only wallets. 
-      6. Online mode ( connects live to the daemon using RPC)
-      7. Offline mode ( works without internet or daemon). The wallet can work in completely offline mode.  To use the wallet in offline mode, download and copy this file URL to wallet directory. You can yourself create this data file if you run the golang daemon  and execute ```wget http://127.0.0.1:9999/getoutputs.bin ``` . 
+ - display and  recover using recovery key (64 hex chars)
+ - view only wallets. 
+ - Online mode ( connects live to the daemon using RPC)
+ - Offline mode ( works without internet or daemon). The wallet can work in completely offline mode.  To use the wallet in offline mode, download and copy this file URL to wallet directory. You can yourself create this data file if you run the golang daemon  and execute ```wget http://127.0.0.1:9999/getoutputs.bin ``` . 
 
-2. **Blockchain Explorer** : A tool to monitor and interact the DERO network and its state. It allows anyone to browse/parse/locate any transaction/block etc. The tool works over RPC interface and connects with dero daemon golang version. Anyone running the golang dero daemon, can run the explorer and immediately and access it using browser at  http://127.0.0.1:8080/ . This increases privacy as some users do not want to use the publicly hosted block explorers. The explorer is almost complete (except  1 feature). Any ideas on increasing usability of block explorer are welcome. More features will be implemented as the smart contracts are implemented.
+2. **DERO Blockchain Explorer** : Blockchain Explorer is tool to monitor and interact the DERO network and it's state. It allows anyone to browse/parse/locate any transaction/block etc. The tool works over RPC interface and connects with dero daemon golang version. Anyone running the golang dero daemon, can run the explorer and immediately and access it using browser at  http://127.0.0.1:8080/ . This increases privacy as some users do not want to use the publicly hosted block explorers. Dero Explorer is almost complete (except 1 feature). DERO Explorer will expand as Smart Contracts are supported.
 
-3. **Dero Daemon**: It is mostly complete. However, mining has been disabled until more testing is complete.  RPC is implemented.
+3. **DERO Daemon**: Dero daemon is mostly complete. However, mining has been disabled until more testing is complete.  RPC is implemented.
 
 
 
