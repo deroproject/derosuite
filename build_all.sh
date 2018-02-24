@@ -16,8 +16,8 @@ bash $ABSDIR/build_package.sh "github.com/deroproject/derosuite/cmd/dero-wallet-
 cd "${ABSDIR}/build"
 
 #windows users require zip files
-zip -r windows-amd64.zip windows_amd64
-zip -r windows-x86.zip windows_386
+zip -r dero_windows_amd64.zip dero_windows_amd64
+zip -r dero_windows_386.zip dero_windows_386
 
 #all other platforms are okay with tar.gz
 find . -mindepth 1 -type d -not -name '*windows*'   -exec tar --owner=dummy --group=dummy -cvzf {}.tar.gz {} \;

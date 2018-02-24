@@ -373,7 +373,9 @@ func main() {
 			// fmt.Printf("chain diff %d\n",chain.Get_Difficulty_At_Block(chain.Top_ID))
 			//fmt.Printf("chain nw rate %d\n", chain.Get_Network_HashRate())
 			inc, out := p2p.Peer_Direction_Count()
-			fmt.Printf("Network %s Height %d  NW Hashrate %0.03f MH/sec  TH %s Peers %d inc, %d out  MEMPOOL size %d\n", globals.Config.Name, chain.Get_Height(), float64(chain.Get_Network_HashRate())/1000000.0, chain.Get_Top_ID(), inc, out, len(chain.Mempool.Mempool_List_TX()))
+supply := chain.Load_Already_Generated_Coins_for_BL_ID(chain.Get_Top_ID()) 
+supply -= (2000000* 1000000000000) // remove premine 
+fmt.Printf("Network %s Height %d NW Hashrate %0.03f MH/sec TH %s Peers %d inc, %d out MEMPOOL size %d Total Circulating Supply %s DERO \n", globals.Config.Name, chain.Get_Height(), float64(chain.Get_Network_HashRate())/1000000.0, chain.Get_Top_ID(), inc, out, len(chain.Mempool.Mempool_List_TX()), globals.FormatMoney(supply))
 		case strings.ToLower(line) == "sync_info":
 			p2p.Connection_Print()
 		case strings.ToLower(line) == "bye":

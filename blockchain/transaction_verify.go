@@ -260,6 +260,7 @@ func (chain *Blockchain) Verify_Transaction_NonCoinbase(tx *transaction.Transact
 
 	// a similiar block level check is done for double spending attacks within the block itself
 	// check whether the key image is already used or spent earlier ( in blockchain )
+/*
 	for i := 0; i < len(tx.Vin); i++ {
 		k_image := ringct.Key(tx.Vin[i].(transaction.Txin_to_key).K_image)
 		if chain.Read_KeyImage_Status(crypto.Hash(k_image)) {
@@ -270,7 +271,7 @@ func (chain *Blockchain) Verify_Transaction_NonCoinbase(tx *transaction.Transact
 			return false
 		}
 	}
-
+*/
 	// check whether the TX contains a signature or NOT
 	switch tx.RctSignature.Get_Sig_Type() {
 	case ringct.RCTTypeSimple, ringct.RCTTypeFull: // default case, pass through
