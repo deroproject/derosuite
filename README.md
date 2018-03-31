@@ -14,6 +14,8 @@ Release 2 include following:
 
 **NOTE: All above are strictly for evaluation and have limitations, see below for more details.**
 
+**Download latest pre-compiled alpha binaries from http://seeds.dero.io/alpha/**
+
 | Operating System | Download                                 |
 | ---------------- | ---------------------------------------- |
 | Windows 32       | http://seeds.dero.io/build/dero_windows_386.zip |
