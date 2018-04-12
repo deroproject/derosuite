@@ -1,3 +1,7 @@
+# Source code will be updated in coming weeks.
+# Download latest pre-compiled binaries: http://seeds.dero.io/alpha/
+# OS supported: MacOS, Solaris, FreeBSD, OpenBSD, Windows, Linux, arm devices etc. 
+
 # DERO: Secure, Private Blockchain with Smart Contracts
 
 ## DERO Project :  Cryptonote Privacy + Smart contracts 
