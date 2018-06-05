@@ -1,4 +1,5 @@
-# Source code will be updated in coming weeks.
+# Source code will never be released because we are doing some shady shit
+# our chat mods SUCK and will ban you for asking simple questions
 # Download latest pre-compiled binaries: http://seeds.dero.io/alpha/
 # OS supported: MacOS, Solaris, FreeBSD, OpenBSD, Windows, Linux, arm devices etc. 
 
