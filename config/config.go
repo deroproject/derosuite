@@ -21,55 +21,84 @@ import "github.com/deroproject/derosuite/crypto"
 
 // all global configuration variables are picked from here
 
-var BLOCK_TIME = uint64(120)
+// though testing hash complete successfully with 3 secs block time, however
+// consider homeusers/developing countries we will be targetting  9 secs
+// later hardforks can make it lower by 1 sec, say every 6 months or so, until the system reaches 3 secs
+// by that time, networking,space requirements  and cryptonote tx processing requiremtn will probably outgrow homeusers
+// since most mining nodes will be running in datacenter, 3 secs  blocks c
+const BLOCK_TIME = uint64(12)
 
 // we are ignoring leap seconds from calculations
 
 // coin emiision related settings
-var COIN_MONEY_SUPPLY = uint64(18446744073709551615) // 2^64-1
-var COIN_EMISSION_SPEED_FACTOR = uint64(20)
-var COIN_DIFFICULTY_TARGET = uint64(120)                 // this is a feeder to emission formula
-var COIN_FINAL_SUBSIDY_PER_MINUTE = uint64(300000000000) // 0.3 DERO per minute = 157680 per year roughly
-var CRYPTONOTE_REWARD_BLOCKS_WINDOW = uint64(100)        // last 100 blocks are used to create
+const COIN_MONEY_SUPPLY = uint64(18446744073709551615) // 2^64-1
+const COIN_EMISSION_SPEED_FACTOR = uint64(20)
+const COIN_DIFFICULTY_TARGET = uint64(120)                 // this is a feeder to emission formula
+const COIN_FINAL_SUBSIDY_PER_MINUTE = uint64(300000000000) // 0.3 DERO per minute = 157680 per year roughly
+const CRYPTONOTE_REWARD_BLOCKS_WINDOW = uint64(100)        // last 100 blocks are used to create
 
-var MINER_TX_AMOUNT_UNLOCK = uint64(60)  // miner tx will need 60 blocks to mature
-var NORMAL_TX_AMOUNT_UNLOCK = uint64(10) // normal transfers will mature at 10th (9 blocks distance) blocks to mature
+const MINER_TX_AMOUNT_UNLOCK = uint64(60)  // miner tx will need 60 blocks to mature
+const NORMAL_TX_AMOUNT_UNLOCK = uint64(11) // normal transfers will mature at 10th (9 blocks distance) blocks to mature
+
+// these are used to configure mainnet hard fork
+const HARDFORK_1_END = int64(1)
+
+//const HARDFORK_1_TOTAL_SUPPLY = uint64(2000000000000000000 ) // this is used to mark total supply
+// till 95532 (includind)  4739519967524007940
+// 95543   4739807553788105597
+// 95549   4739964392976757069
+// 95550   4739990536584241377
+const MAINNET_HARDFORK_1_TOTAL_SUPPLY = uint64(4739990536584241377)
+
+const TESTNET_HARDFORK_1_TOTAL_SUPPLY = uint64(4319584000000000000)
 
 // this is used to find whether output is locked to height or time
 // see input maturity to find how it works
 // if locked is less than this, then it is considered locked to height else epoch
-var CRYPTONOTE_MAX_BLOCK_NUMBER = uint64(500000000)
+const CRYPTONOTE_MAX_BLOCK_NUMBER = uint64(500000000)
 
-var MAX_CHAIN_HEIGHT = uint64(2147483648) // 2^31
-
-// we use this for scheduled hardforks
-var CURRENT_BLOCK_MAJOR_VERSION = 6
-var CURRENT_BLOCK_MINOR_VERSION = 6
+const MAX_CHAIN_HEIGHT = uint64(2147483648) // 2^31
 
 // this is also the minimum block size
-var CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE = uint64(300000) // after this block size , reward calculated differently
-var CRYPTONOTE_MAX_TX_SIZE = uint64(100 * 1024 * 1024)         // 100 MB, we must rationalize it
+// no longer used for emission as our block sizes are now fixed
+const CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE = uint64(300000) // after this block size , reward calculated differently
 
-// we only accept blocks which are this much into future, 2 hours
-const CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT = 60 * 60 * 20
+// max block deviation of 2 seconds is allowed
+const CRYPTONOTE_FUTURE_TIME_LIMIT = 2
 
-// block is checked that the timestamp is not less than the median of this many blocks
-const BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW = 60
+// 1.25 MB block every 12 secs is equal to roughly 75 TX per second
+// if we consider side blocks, TPS increase to > 100 TPS
+// we can easily improve TPS by changing few parameters in this file
+// the resources compute/network may not be easy for the developing countries
+// we need to trade of TPS  as per community
+const CRYPTONOTE_MAX_BLOCK_SIZE = uint64((1 * 1024 * 1024) + (256*1024 )) // max block size limit
 
-// consider last 30 blocks for calculating difficulty
-const DIFFICULTY_BLOCKS_COUNT_V2 = 30
+const CRYPTONOTE_MAX_TX_SIZE = 300 * 1024 // max size
 
-// FEE calculation constants are here
-// the constants can be found in cryptonote_config.h
-const DYNAMIC_FEE_PER_KB_BASE_FEE_V5 = uint64((2000000000 * 60000) / 300000)
-const DYNAMIC_FEE_PER_KB_BASE_BLOCK_REWARD = uint64(10000000000000) // 10 * pow(10,12)
+const MAX_VOUT = 8   // max payees, 6, 7 is change,   8th will be rejected
+const MIN_MIXIN = 5  //  >= 5 ,   4 mixin will be rejected
+const MAX_MIXIN = 14 // <= 13,   14th will rejected
 
-const PROJECT_NAME = "dero"
-const POOLDATA_FILENAME = "poolstate.bin"
+// ATLANTIS FEE calculation constants are here
+const FEE_PER_KB = uint64(1000000000) // .001 dero per kb
 
-//const CRYPTONOTE_BLOCKCHAINDATA_FILENAME      "data.mdb" // these decisions are made by storage layer
-//#define CRYPTONOTE_BLOCKCHAINDATA_LOCK_FILENAME "lock.mdb"
-const P2P_NET_DATA_FILENAME = "p2pstate.bin"
+// mainnet botstraps at 200 MH
+//const MAINNET_BOOTSTRAP_DIFFICULTY = uint64(200 *  1000* 1000 * BLOCK_TIME)
+const MAINNET_BOOTSTRAP_DIFFICULTY = uint64(200 *1000*1000 * BLOCK_TIME)
+const MAINNET_MINIMUM_DIFFICULTY = uint64(1000*1000 * BLOCK_TIME) // 2KH
+
+// testnet bootstraps at 1 MH
+//const  TESTNET_BOOTSTRAP_DIFFICULTY = uint64(1000*1000*BLOCK_TIME)
+const TESTNET_BOOTSTRAP_DIFFICULTY = uint64(800 * BLOCK_TIME) // testnet bootstrap at 800 H/s
+const TESTNET_MINIMUM_DIFFICULTY = uint64(800 * BLOCK_TIME) // 800 H
+
+
+// this single parameter controls lots of various parameters
+// within the consensus, it should never go below 7
+// if changed responsibly, we can have one second  or lower blocks (ignoring chain bloat/size issues)
+// gives immense scalability,
+// increasing this means, you need to change  maturity limits also
+const STABLE_LIMIT = int64(8)
 
 // we can have number of chains running for testing reasons
 type CHAIN_CONFIG struct {
@@ -78,8 +107,9 @@ type CHAIN_CONFIG struct {
 	Public_Address_Prefix            uint64
 	Public_Address_Prefix_Integrated uint64
 
-	P2P_Default_Port uint32
-	RPC_Default_Port uint32
+	P2P_Default_Port        int
+	RPC_Default_Port        int
+	Wallet_RPC_Default_Port int
 
 	Genesis_Nonce uint32
 
@@ -89,17 +119,15 @@ type CHAIN_CONFIG struct {
 }
 
 var Mainnet = CHAIN_CONFIG{Name: "mainnet",
-	Network_ID:                       uuid.FromBytesOrNil([]byte{0x59, 0xd7, 0xf7, 0xe9, 0xdd, 0x48, 0xd5, 0xfd, 0x13, 0x0a, 0xf6, 0xe0, 0x9a, 0xec, 0xb9, 0x23}),
-	Public_Address_Prefix:            0xc8ed8, //for dERo
-	Public_Address_Prefix_Integrated: 0xa0ed8, //for dERi
-	P2P_Default_Port:                 18090,
-	RPC_Default_Port:                 18091,
+	Network_ID:                       uuid.FromBytesOrNil([]byte{0x59, 0xd7, 0xf7, 0xe9, 0xdd, 0x48, 0xd5, 0xfd, 0x13, 0x0a, 0xf6, 0xe0, 0x9a, 0x11, 0x22, 0x33}),
+	Public_Address_Prefix:            0xc8ed8, //for dERo  823000
+	Public_Address_Prefix_Integrated: 0xa0ed8, //for dERi  659160
+	P2P_Default_Port:                 20202,
+	RPC_Default_Port:                 20206,
+	Wallet_RPC_Default_Port:          20209,
 	Genesis_Nonce:                    10000,
 
-	Genesis_Block_Hash: crypto.Hash([32]byte{0x36, 0x2d, 0x61, 0x48, 0xd6, 0x83, 0x08, 0x2d,
-		0x94, 0x2e, 0x53, 0xdd, 0xb5, 0x0d, 0xaf, 0x54,
-		0x6a, 0x10, 0x92, 0xda, 0x76, 0x98, 0x2d, 0x5b,
-		0xd4, 0xf1, 0x3d, 0x0d, 0xf0, 0x74, 0xec, 0x2f}),
+	Genesis_Block_Hash: crypto.HashHexToHash("e14e318562db8d22f8d00bd41c7938807c7ff70e4380acc6f7f2427cf49f474a"),
 
 	Genesis_Tx: "" +
 		"02" + // version
@@ -117,18 +145,16 @@ var Mainnet = CHAIN_CONFIG{Name: "mainnet",
 		"00", // RCT signature none
 }
 
-var Testnet = CHAIN_CONFIG{Name: "testnet",
-	Network_ID:                       uuid.FromBytesOrNil([]byte{0x59, 0xd7, 0xf7, 0xe9, 0xdd, 0x48, 0xd5, 0xfd, 0x13, 0x0a, 0xf6, 0xe0, 0x9a, 0xec, 0xb9, 0x24}),
-	Public_Address_Prefix:            0x6cf58, // for dETo
-	Public_Address_Prefix_Integrated: 0x44f58, //for dETi
-	P2P_Default_Port:                 28090,
-	RPC_Default_Port:                 28091,
+var Testnet = CHAIN_CONFIG{Name: "testnet", // testnet will always have last 3 bytes 0
+	Network_ID:                       uuid.FromBytesOrNil([]byte{0x59, 0xd7, 0xf7, 0xe9, 0xdd, 0x48, 0xd5, 0xfd, 0x13, 0x0a, 0xf6, 0xe0, 0x9a, 0x04, 0x00, 0x00}),
+	Public_Address_Prefix:            0x6cf58, // for dETo 446296
+	Public_Address_Prefix_Integrated: 0x44f58, // for dETi 282456
+	P2P_Default_Port:                 30303,
+	RPC_Default_Port:                 30306,
+	Wallet_RPC_Default_Port:          30309,
 	Genesis_Nonce:                    10001,
 
-	Genesis_Block_Hash: crypto.Hash([32]byte{0x63, 0x34, 0x12, 0xde, 0x21, 0xea, 0xcb, 0xf0,
-		0x03, 0xe0, 0xfb, 0x9b, 0x7f, 0xcb, 0xca, 0x97,
-		0x6d, 0xff, 0xd4, 0x3e, 0x3f, 0x06, 0x9e, 0x55,
-		0xfa, 0xf1, 0xc5, 0xb4, 0x46, 0x2b, 0x59, 0x3a}),
+	Genesis_Block_Hash: crypto.HashHexToHash("7be4a8f27bcadf556132dba38c2d3d78214beec8a959be17caf172317122927a"),
 
 	Genesis_Tx: "" +
 		"02" + // version
@@ -147,10 +173,7 @@ var Testnet = CHAIN_CONFIG{Name: "testnet",
 
 }
 
-// on init this variable is updated to setup global config in 1 go
-//var Current_Config CHAIN_CONFIG
-
-func init() {
-	//Current_Config = Mainnet // default is mainnnet
-	//Current_Config = Testnet // default is mainnnet
-}
+// the constants can be found in cryptonote_config.h
+// these are still here for previous emission functions, they are not used directly for atlantis
+const DYNAMIC_FEE_PER_KB_BASE_FEE_V5 = uint64((2000000000 * 60000) / 300000)
+const DYNAMIC_FEE_PER_KB_BASE_BLOCK_REWARD = uint64(1000000000000) // 1 * pow(10,12)

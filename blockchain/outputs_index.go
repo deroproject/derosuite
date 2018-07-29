@@ -27,15 +27,17 @@ import "fmt"
 //import "sync"
 //import "encoding/binary"
 
+import "github.com/romana/rlog"
 import "github.com/vmihailenco/msgpack"
 
 import "github.com/deroproject/derosuite/config"
 import "github.com/deroproject/derosuite/crypto"
 import "github.com/deroproject/derosuite/globals"
+import "github.com/deroproject/derosuite/storage"
 import "github.com/deroproject/derosuite/crypto/ringct"
 import "github.com/deroproject/derosuite/transaction"
 
-import "github.com/deroproject/derosuite/walletapi"
+//import "github.com/deroproject/derosuite/walletapi"
 
 type Index_Data struct {
 	InKey     ringct.CtKey
@@ -68,7 +70,7 @@ func (o *Index_Data) Deserialize(buf []byte) (err error) {
 }
 */
 
-var account walletapi.Account
+//var account walletapi.Account
 
 /*
 func init() {
@@ -92,56 +94,72 @@ func init() {
 // 8 bytes blockheight to which this output belongs
 // this function should always succeed or panic showing something is not correct
 // NOTE: this function should only be called after all the tx and the block has been stored to DB
-func (chain *Blockchain) write_output_index(block_id crypto.Hash) {
+func (chain *Blockchain) write_output_index(dbtx storage.DBTX, block_id crypto.Hash, index_start int64) (result bool) {
 
 	// load the block
-	bl, err := chain.Load_BL_FROM_ID(block_id)
+	bl, err := chain.Load_BL_FROM_ID(dbtx, block_id)
 	if err != nil {
 		logger.Warnf("No such block %s for writing output index", block_id)
 		return
 	}
 
-	index_start := chain.Get_Block_Output_Index(block_id) // get index position
-	height := chain.Load_Height_for_BL_ID(block_id)
+	//index_start := chain.Get_Block_Output_Index(dbtx,block_id) // get index position
+	// load topo height
+	height := chain.Load_Height_for_BL_ID(dbtx, block_id)
 
-	logger.Debugf("Writing Output Index for block %s height %d output index %d", block_id, height, index_start)
+	// this was for quick tetsing of wallet
+	//index_start =  uint64(height) //
+
+	rlog.Debugf("Writing Output Index for block %s height %d output index %d", block_id, height, index_start)
+
+	dbtx.StoreUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, block_id[:], PLANET_OUTPUT_INDEX, uint64(index_start))
 
 	// ads miner tx separately as a special case
 	var o globals.TX_Output_Data
 	var d Index_Data
 
 	// extract key and commitment mask from for miner tx
-	d.InKey.Destination = ringct.Key(bl.Miner_tx.Vout[0].Target.(transaction.Txout_to_key).Key)
+	//	d.InKey.Destination = ringct.Key(bl.Miner_TX.Vout[0].Target.(transaction.Txout_to_key).Key)
 
 	// mask can be calculated for miner tx on the wallet side as below
-	d.InKey.Mask = ringct.ZeroCommitment_From_Amount(bl.Miner_tx.Vout[0].Amount)
-	d.Height = height
-	d.Unlock_Height = height + config.MINER_TX_AMOUNT_UNLOCK
+	//	d.InKey.Mask = ringct.ZeroCommitment_From_Amount(bl.Miner_TX.Vout[0].Amount)
+	//	d.Height = uint64(height)
+	//	d.Unlock_Height = uint64(height) + config.MINER_TX_AMOUNT_UNLOCK
 
-	o.TXID = bl.Miner_tx.GetHash()
-	o.InKey.Destination = ringct.Key(bl.Miner_tx.Vout[0].Target.(transaction.Txout_to_key).Key)
-	o.InKey.Mask = ringct.ZeroCommitment_From_Amount(bl.Miner_tx.Vout[0].Amount)
-	o.Height = height
-	o.Unlock_Height = 0 // miner tx caannot be locked
+	minertx_reward, err := dbtx.LoadUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, block_id[:], PLANET_MINERTX_REWARD)
+	if err != nil {
+		logger.Fatalf("Base Reward is not stored in DB block %s", block_id)
+
+		return
+	}
+	o.BLID = block_id // store block id
+	o.TXID = bl.Miner_TX.GetHash()
+	o.InKey.Destination = crypto.Key(bl.Miner_TX.Vout[0].Target.(transaction.Txout_to_key).Key)
+
+	// FIXME miner tx amount should be what we calculated
+	//	o.InKey.Mask = ringct.ZeroCommitment_From_Amount(bl.Miner_TX.Vout[0].Amount)
+	o.InKey.Mask = ringct.ZeroCommitment_From_Amount(minertx_reward)
+	o.Height = uint64(height)
+	o.Unlock_Height = 0 // miner tx cannot be locked
 	o.Index_within_tx = 0
-	o.Index_Global = index_start
-	o.Amount = bl.Miner_tx.Vout[0].Amount
+	o.Index_Global = uint64(index_start)
+	//	o.Amount = bl.Miner_TX.Vout[0].Amount
+	o.Amount = minertx_reward
 	o.SigType = 0
 	o.Block_Time = bl.Timestamp
+	o.TopoHeight = chain.Load_Block_Topological_order(dbtx, block_id)
 
 	//ECDHTuple & sender pk is not available for miner tx
 
-	if bl.Miner_tx.Parse_Extra() {
+	if bl.Miner_TX.Parse_Extra() {
 
-		o.Tx_Public_Key = bl.Miner_tx.Extra_map[transaction.TX_PUBLIC_KEY].(crypto.Key)
+		// store public key if present
+		if _, ok := bl.Miner_TX.Extra_map[transaction.TX_PUBLIC_KEY]; ok {
+			o.Tx_Public_Key = bl.Miner_TX.Extra_map[transaction.TX_PUBLIC_KEY].(crypto.Key)
+		}
+
 		//o.Derivation_Public_Key_From_Vout = bl.Miner_tx.Vout[0].Target.(transaction.Txout_to_key).Key
-		/*
-		   *   PRE-WALLET code, can be  used to track down bugs in wallet
-		          if account.Is_Output_Ours(bl.Miner_tx.Extra_map[transaction.TX_PUBLIC_KEY].(crypto.Key),0, bl.Miner_tx.Vout[0].Target.(transaction.Txout_to_key).Key){
-		              logger.Warnf("Miner Output is ours in tx %s height %d",bl.Miner_tx.GetHash(),height)
-		          }
 
-		*/
 	}
 
 	serialized, err := msgpack.Marshal(&o)
@@ -152,14 +170,21 @@ func (chain *Blockchain) write_output_index(block_id crypto.Hash) {
 	//fmt.Printf("index %d  %x\n",index_start,d.InKey.Destination)
 
 	// store the index and relevant keys together in compact form
-	chain.store.StoreObject(BLOCKCHAIN_UNIVERSE, GALAXY_OUTPUT_INDEX, GALAXY_OUTPUT_INDEX, itob(index_start), serialized)
+	dbtx.StoreObject(BLOCKCHAIN_UNIVERSE, GALAXY_OUTPUT_INDEX, GALAXY_OUTPUT_INDEX, itob(uint64(index_start)), serialized)
 
 	index_start++
 
 	// now loops through all the transactions, and store there ouutputs also
-
+	// however as per client protocol, only process accepted transactions
 	for i := 0; i < len(bl.Tx_hashes); i++ { // load all tx one by one
-		tx, err := chain.Load_TX_FROM_ID(bl.Tx_hashes[i])
+
+		if !chain.IS_TX_Valid(dbtx, block_id, bl.Tx_hashes[i]) { // skip invalid TX
+			rlog.Tracef(1, "bl %s tx %s ignored while building outputs index as per client protocol", block_id, bl.Tx_hashes[i])
+			continue
+		}
+		rlog.Tracef(1, "bl %s tx %s is being used while building outputs index as per client protocol", block_id, bl.Tx_hashes[i])
+
+		tx, err := chain.Load_TX_FROM_ID(dbtx, bl.Tx_hashes[i])
 		if err != nil {
 			panic(fmt.Errorf("Cannot load  tx for %x err %s", bl.Tx_hashes[i], err))
 		}
@@ -167,18 +192,23 @@ func (chain *Blockchain) write_output_index(block_id crypto.Hash) {
 		//fmt.Printf("tx %s",bl.Tx_hashes[i])
 		index_within_tx := uint64(0)
 
+		o.BLID = block_id // store block id
 		o.TXID = bl.Tx_hashes[i]
-		o.Height = height
+		o.Height = uint64(height)
 		o.SigType = uint64(tx.RctSignature.Get_Sig_Type())
 
 		// TODO unlock specific outputs on specific height
-		o.Unlock_Height = height + config.NORMAL_TX_AMOUNT_UNLOCK
+		o.Unlock_Height = uint64(height) + config.NORMAL_TX_AMOUNT_UNLOCK
 
 		// build the key image list and pack it
 		for j := 0; j < len(tx.Vin); j++ {
-			k_image := ringct.Key(tx.Vin[j].(transaction.Txin_to_key).K_image)
+			k_image := crypto.Key(tx.Vin[j].(transaction.Txin_to_key).K_image)
 			o.Key_Images = append(o.Key_Images, crypto.Key(k_image))
 		}
+
+		// zero out fields between tx
+		o.Tx_Public_Key = crypto.Key(ZERO_HASH)
+		o.PaymentID = o.PaymentID[:0]
 
 		extra_parsed := tx.Parse_Extra()
 
@@ -186,16 +216,16 @@ func (chain *Blockchain) write_output_index(block_id crypto.Hash) {
 		for j := uint64(0); j < uint64(len(tx.Vout)); j++ {
 
 			//fmt.Printf("Processing vout %d\n", j)
-			d.InKey.Destination = ringct.Key(tx.Vout[j].Target.(transaction.Txout_to_key).Key)
-			d.InKey.Mask = ringct.Key(tx.RctSignature.OutPk[j].Mask)
+			d.InKey.Destination = crypto.Key(tx.Vout[j].Target.(transaction.Txout_to_key).Key)
+			d.InKey.Mask = crypto.Key(tx.RctSignature.OutPk[j].Mask)
 
-			o.InKey.Destination = ringct.Key(tx.Vout[j].Target.(transaction.Txout_to_key).Key)
-			o.InKey.Mask = ringct.Key(tx.RctSignature.OutPk[j].Mask)
+			o.InKey.Destination = crypto.Key(tx.Vout[j].Target.(transaction.Txout_to_key).Key)
+			o.InKey.Mask = crypto.Key(tx.RctSignature.OutPk[j].Mask)
 
 			o.ECDHTuple = tx.RctSignature.ECdhInfo[j]
 
 			o.Index_within_tx = index_within_tx
-			o.Index_Global = index_start
+			o.Index_Global = uint64(index_start)
 			o.Amount = tx.Vout[j].Amount
 			o.Unlock_Height = 0
 
@@ -210,7 +240,18 @@ func (chain *Blockchain) write_output_index(block_id crypto.Hash) {
 			}
 
 			if extra_parsed {
-				o.Tx_Public_Key = tx.Extra_map[transaction.TX_PUBLIC_KEY].(crypto.Key)
+				// store public key if present
+				if _, ok := tx.Extra_map[transaction.TX_PUBLIC_KEY]; ok {
+					o.Tx_Public_Key = tx.Extra_map[transaction.TX_PUBLIC_KEY].(crypto.Key)
+				}
+
+				// store payment IDs if present
+				if _, ok := tx.PaymentID_map[transaction.TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID]; ok {
+					o.PaymentID = tx.PaymentID_map[transaction.TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID].([]byte)
+				} else if _, ok := tx.PaymentID_map[transaction.TX_EXTRA_NONCE_PAYMENT_ID]; ok {
+					o.PaymentID = tx.PaymentID_map[transaction.TX_EXTRA_NONCE_PAYMENT_ID].([]byte)
+				}
+
 				/*   during emergency, for debugging purpose only
 				     NOTE: remove this before rekeasing code
 
@@ -230,7 +271,8 @@ func (chain *Blockchain) write_output_index(block_id crypto.Hash) {
 			if err != nil {
 				panic(err)
 			}
-			chain.store.StoreObject(BLOCKCHAIN_UNIVERSE, GALAXY_OUTPUT_INDEX, GALAXY_OUTPUT_INDEX, itob(index_start), serialized)
+
+			dbtx.StoreObject(BLOCKCHAIN_UNIVERSE, GALAXY_OUTPUT_INDEX, GALAXY_OUTPUT_INDEX, itob(uint64(index_start)), serialized)
 
 			// fmt.Printf("index %d  %x\n",index_start,d.InKey.Destination)
 			index_start++
@@ -239,6 +281,10 @@ func (chain *Blockchain) write_output_index(block_id crypto.Hash) {
 
 	}
 
+	// store where the look up ends
+	dbtx.StoreUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, block_id[:], PLANET_OUTPUT_INDEX_END, uint64(index_start))
+
+	return true
 }
 
 // this will load the index  data for specific index
@@ -247,34 +293,49 @@ func (chain *Blockchain) write_output_index(block_id crypto.Hash) {
 // to avoid that pitfall take the chain lock
 // NOTE: this function is now for internal use only by the blockchain itself
 //
-func (chain *Blockchain) load_output_index(index uint64) (idata globals.TX_Output_Data) {
+func (chain *Blockchain) load_output_index(dbtx storage.DBTX, index uint64) (idata globals.TX_Output_Data, success bool) {
 	// chain.Lock()
 	// defer chain.Unlock()
-	data_bytes, err := chain.store.LoadObject(BLOCKCHAIN_UNIVERSE, GALAXY_OUTPUT_INDEX, GALAXY_OUTPUT_INDEX, itob(index))
+
+	success = false
+	data_bytes, err := dbtx.LoadObject(BLOCKCHAIN_UNIVERSE, GALAXY_OUTPUT_INDEX, GALAXY_OUTPUT_INDEX, itob(index))
 
 	if err != nil {
 		logger.Warnf("err while loading output index data index = %d err %s", index, err)
+		success = false
 		return
 	}
 
 	err = msgpack.Unmarshal(data_bytes, &idata)
 	if err != nil {
-		logger.Warnf("err while unmarshallin output index data index = %d  data_len %d err %s", index, len(data_bytes), err)
+		rlog.Warnf("err while unmarshallin output index data index = %d  data_len %d err %s", index, len(data_bytes), err)
+		success = false
 		return
 	}
 
+	success = true
 	return
 }
 
 // this will read the output index data but will not deserialize it
 // this is exposed for rpcserver giving access to wallet
-func (chain *Blockchain) Read_output_index(index uint64) (data_bytes []byte, err error) {
-	chain.Lock()
-	defer chain.Unlock()
-	data_bytes, err = chain.store.LoadObject(BLOCKCHAIN_UNIVERSE, GALAXY_OUTPUT_INDEX, GALAXY_OUTPUT_INDEX, itob(index))
+func (chain *Blockchain) Read_output_index(dbtx storage.DBTX, index uint64) (data_bytes []byte, err error) {
+
+	if dbtx == nil {
+		dbtx, err = chain.store.BeginTX(false)
+		if err != nil {
+			rlog.Warnf("Error obtaining read-only tx. Error opening writable TX, err %s", err)
+			return
+		}
+
+		defer dbtx.Rollback()
+
+	}
+
+	data_bytes, err = dbtx.LoadObject(BLOCKCHAIN_UNIVERSE, GALAXY_OUTPUT_INDEX, GALAXY_OUTPUT_INDEX, itob(index))
 
 	if err != nil {
-		logger.Warnf("err while loading output index data index = %d err %s", index, err)
+		rlog.Warnf("err while loading output index data index = %d err %s", index, err)
 		return
 	}
 	return data_bytes, err
@@ -284,30 +345,28 @@ func (chain *Blockchain) Read_output_index(index uint64) (data_bytes []byte, err
 // first find a block index , and get the start offset
 // then loop the index till you find the key in the result
 // if something is not right, we return 0
-func (chain *Blockchain) Find_TX_Output_Index(tx_hash crypto.Hash) (offset uint64) {
-	Block_Height := chain.Load_TX_Height(tx_hash) // get height
 
-	block_id, err := chain.Load_BL_ID_at_Height(Block_Height)
+func (chain *Blockchain) Find_TX_Output_Index(tx_hash crypto.Hash) (offset int64) {
+	topo_Height := chain.Load_TX_Height(nil, tx_hash) // get height at which it's mined
+
+	block_id, err := chain.Load_Block_Topological_order_at_index(nil, topo_Height)
+
 	if err != nil {
-		logger.Warnf("error while finding tx_output_index %s", tx_hash)
+		rlog.Warnf("error while finding tx_output_index %s", tx_hash)
 		return 0
 	}
 
-	block_index_start := chain.Get_Block_Output_Index(block_id)
+	block_index_start, _ := chain.Get_Block_Output_Index(nil, block_id)
+
 	// output_max_count := chain.Block_Count_Vout(block_id)  // this function will load/serdes all tx contained within block
-	/*for index_start:= block_index_start; index_start < (block_index_start+output_max_count); index_start++{
 
-
-	  }
-	*/
-
-	bl, err := chain.Load_BL_FROM_ID(block_id)
-
+	bl, err := chain.Load_BL_FROM_ID(nil, block_id)
 	if err != nil {
-		logger.Warnf("Cannot load  block for %s err %s", block_id, err)
+		rlog.Warnf("Cannot load  block for %s err %s", block_id, err)
 		return
 	}
-	if tx_hash == bl.Miner_tx.GetHash() {
+
+	if tx_hash == bl.Miner_TX.GetHash() { // miner tx is the beginning point
 		return block_index_start
 	}
 
@@ -315,22 +374,27 @@ func (chain *Blockchain) Find_TX_Output_Index(tx_hash crypto.Hash) (offset uint6
 
 	for i := 0; i < len(bl.Tx_hashes); i++ { // load all tx one by one
 
+		// follow client protocol and skip some transactions
+		if !chain.IS_TX_Valid(nil, block_id, bl.Tx_hashes[i]) { // skip invalid TX
+			continue
+		}
+
 		if bl.Tx_hashes[i] == tx_hash {
 			return offset
 		}
-		tx, err := chain.Load_TX_FROM_ID(bl.Tx_hashes[i])
+		tx, err := chain.Load_TX_FROM_ID(nil, bl.Tx_hashes[i])
 		if err != nil {
-			logger.Warnf("Cannot load  tx for %s err %s", bl.Tx_hashes[i], err)
+			rlog.Warnf("Cannot load  tx for %s err %s", bl.Tx_hashes[i], err)
 		}
 
 		// tx has been loaded, now lets get the vout
-		vout_count := uint64(len(tx.Vout))
+		vout_count := int64(len(tx.Vout))
 		offset += vout_count
 	}
 
 	// we will reach here only if tx is linked to wrong block
 	// this may be possible during reorganisation
 	// return 0
-	logger.Warnf("Index Position must never reach here")
-	return 0
+	//logger.Warnf("Index Position must never reach here")
+	return -1
 }

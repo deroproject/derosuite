@@ -65,101 +65,13 @@ func Test_Genesis_Tx(t *testing.T) {
 	if tx.Extra_map[TX_PUBLIC_KEY] != expected_key {
 		t.Errorf("mainnet Genesis tx  extra parsing failed, public key no match\n")
 	}
-}
 
-func Test_Transaction_Deserialisation_Height_110_first(t *testing.T) {
-
-	// transaction from height 110 txid 7f7bf73e2da48f16f17b2d5c81fe9e581e5a7ac6ed552da3015660baeda9f698
-	// this structure has been manually pulled from wireshark stream
-	tx_data_hex := "01aa0101ff6e08acbb2702eab03067870349139bee7eab2ca2e030a6bb73d4f68ab6a3b6ca937214054cdac0843d028bbe23b57ea9bae53f12da93bb57bf8a2e40598d9fccd10" +
-		"c2921576e987d93cd80b4891302468738e391f07c4f2b356f7957160968e0bfef6e907c3cee2d8c23cbf04b089680c6868f01025a0f41f063e195a966051e3a29e17130a9ce97" +
-		"d48f55285b9bb04bdd55a09ae78088aca3cf0202d0f26169290450fe17e08974789c3458910b4db18361cdc564f8f2d0bdd2cf568090cad2c60e02d6f3483ec45505cc3be8410" +
-		"46c7a12bf953ac973939bc7b727e54258e1881d4d80e08d84ddcb0102dae6dfb16d3e28aaaf43e00170b90606b36f35f38f8a3dceb5ee18199dd8f17c80c0caf384a30202385d" +
-		"7e57a4daba4cdd9e550a92dcc188838386e7581f13f09de796cbed4716a42101c052492a077abf41996b50c1b2e67fd7288bcd8c55cdc657b4e22d0804371f69"
-	tx_data_blob, _ := hex.DecodeString(tx_data_hex)
-
-	var tx Transaction
-
-	err := tx.DeserializeHeader(tx_data_blob)
-
-	if err != nil {
-		t.Error("DeserializeHeader  transaction from blockheight 110 7f7bf73e2da48f16f17b2d5c81fe9e581e5a7ac6ed552da3015660baeda9f698\n")
-		return
+	if tx.IsCoinbase() != true {
+		t.Errorf("mainnet Genesis tx  must be Coinbase\n")
 	}
-
 }
 
-func Test_Transaction_Deserialisation_Height_110_second(t *testing.T) {
-
-	// transaction from height 110 txid beb76a82ea17400cd6d7f595f70e1667d2018ed8f5a78d1ce07484222618c3cd
-	// this structure has been manually pulled from wireshark stream
-	tx_data_hex := "0100010280e08d84ddcb0106010401110701f254220bb50d901a5523eaed438af5d43f8c6d0e54ba0632eb539884f6b7c02008c0a8a50402f9c7cf807ae74e56f4ec84db2bd93" +
-		"cfb02c2249b38e306f5b54b6e05d00d543b8095f52a02b6abb84e00f47f0a72e37b6b29392d906a38468404c57db3dbc5e8dd306a27a880d293ad0302cfc40a86723e7d459e90" +
-		"e45d47818dc0e81a1f451ace5137a4af8110a89a35ea80b4c4c321026b19c796338607d5a2c1ba240a167134142d72d1640ef07902da64fed0b10cfc8088aca3cf02021f6f655" +
-		"254fee84161118b32e7b6f8c31de5eb88aa00c29a8f57c0d1f95a24dd80d0b8e1981a023321af593163cea2ae37168ab926efd87f195756e3b723e886bdb7e618f751c480a094" +
-		"a58d1d0295ed2b08d1cf44482ae0060a5dcc4b7d810a85dea8c62e274f73862f3d59f8ed80a0e5b9c2910102dc50f2f28d7ceecd9a1147f7106c8d5b4e08b2ec77150f52dd713" +
-		"0ee4f5f50d42101d34f90ac861d0ee9fe3891656a234ea86a8a93bf51a237db65baa00d3f4aa196a9e1d89bc06b40e94ea9a26059efc7ba5b2de7ef7c139831ca62f3fe0bb252" +
-		"008f8c7ee810d3e1e06313edf2db362fc39431755779466b635f12f9f32e44470a3e85e08a28fcd90633efc94aa4ae39153dfaf661089d045521343a3d63e8da08d7916753c66" +
-		"aaebd4eefcfe8e58e5b3d266b752c9ca110749fa33fce7c44270386fcf2bed4f03dd5dadb2dc1fd4c505419f8217b9eaec07521f0d8963e104603c926745039cf38d31de6ed95" +
-		"ace8e8a451f5a36f818c151f517546d55ac0f500e54d07b30ea7452f2e93fa4f60bdb30d71a0a97f97eb121e662006780fbf69002228224a96bff37893d47ec3707b17383906c" +
-		"0cd7d9e7412b3e6c8ccf1419b093c06c26f96e3453b424713cdc5c9575f81cda4e157052df11f4c40809edf420f88a3dd1f7909bbf77c8b184a933389094a88e480e900bcdbf6" +
-		"d1824742ee520fc0032e7d892a2b099b8c6edfd1123ce58a34458ee20cad676a7f7cfd80a28f0cb0888af88838310db372986bdcf9bfcae2324480ca7360d22bff21fb569a530e"
-	tx_data_blob, _ := hex.DecodeString(tx_data_hex)
-
-	var tx Transaction
-
-	err := tx.DeserializeHeader(tx_data_blob)
-
-	if err != nil {
-		t.Error("DeserializeHeader  transaction from blockheight 110 beb76a82ea17400cd6d7f595f70e1667d2018ed8f5a78d1ce07484222618c3cd\n")
-		return
-	}
-
-	// now serialize once again
-	/*
-		serialised, _ := lheader.Serialize()
-		 if raw_data != hex.EncodeToString(serialised){
-		 	t.Error("Serialize Levin_Header Failed")
-		 }
-	*/
-
-}
-
-func Test_Transaction_Deserialisation_Height_345_second(t *testing.T) {
-
-	// transaction from height 345 txid 9ecdadf8b95aa0a7b754559f5fd7a9bb0f5014c4107b3dc6b3331430b5ea984d
-	tx_data_hex := "01000502ccfd1b01002c03aa742e881a41588827ea8680f68ea3e6988917c832767e951f3ff7457b170280a0d9e61d010856cfc2d32b7742ac434740a684503e0c61125e71ad8" +
-		"590e6e7a5887a6ec8ad3a0280c0fc82aa020143c8db95b9af6de4a73036748acca2e3d0bfaa817d465517b98e57797c9b455d15028090cad2c60e0190025210cecc11becf8d0f" +
-		"8299b01674bdf86bceb2f78c5a30c8970e04f4a317d2820280e08d84ddcb01019002b705639c46e64a8d2f61454e63c633dea9163eda0621d7c4ef88bac4e3b06ff608c0a8a50" +
-		"4023a8dd1006ef4752f8af5e4021a5e09168f78333f3920b1d52a8d2fd8a0dd0a688095f52a021687f0553eac19137c4e9544082c4103e40108be40459deed7cd29887786f3cc" +
-		"80d293ad030242751f4fef4a8c939f2e495dc68ad9d6a0757ae73a60840af570901cfefe49ca808cee891a026692debc763112bd5e9d2fa3881af58c89cba3f6a8550faac92d7" +
-		"ebc82afcffd80c0fc82aa0202a7b5bce3e2e5017ab9c4a0917494b03ce108fd7a6930ed16399456d221ddaa828090cad2c60e0200630a66763c211bc964e6f2a279144a911289" +
-		"e4992c995a5bf87b89b64ac93180a094a58d1d024930687802aec5a6c594e64571ddd31ecc371f52d7d10ad869acdb9af730ead180c0f9decfae0102dd96078cd9a9ef9044397" +
-		"cfde225abe9ab24166b55479bec6ebb7c7f49c5b2d92101353bbda344eeaa6cd0225a414e83d1a59cbb91bbf36dbc49fda6f532fa9286ac8a040a050c9179a1e88ac96370fc6c" +
-		"0ad7e5fdaee4c9b0a440af56d5dcd159034c572e6bf5f7be8036e1f1349d2e895253956a55c30fd3dc0c6646512aac5a05e608faaf2186192b4e403d9da0dd211e81fef866b94" +
-		"807b9deb1195de6800a0512bece8d12f5e3815d69036bafaec7c95025bc4dcc4656e911a673559bfd6b01394bdbfb69bb44665dc26c321db3cf4f174077d14c9cee2339893beb7ac2f50d2c6a1875d0e100e0ee230e52e3e33553a1fc06502ddaba7d13cfc314d1eded04347d7e4fc115185b32bbab7483099187acfad1393417795b7348a66f1801b906f2aaf8284e12abb4d651755b587bc6b840e785f5376416c264d48c5dbb32190a999b4cbfd90c86b1eda8e2e943f094a064690c8e5a7daa87f55335aeac576b0af5cc6789a97b34ba17dcda54382ea8c72e392be6e2850ee348fa5b5b1e0f2002"
-	tx_data_blob, _ := hex.DecodeString(tx_data_hex)
-
-	var tx Transaction
-
-	err := tx.DeserializeHeader(tx_data_blob)
-
-	if err != nil {
-		t.Error("DeserializeHeader  transaction from blockheight 110 beb76a82ea17400cd6d7f595f70e1667d2018ed8f5a78d1ce07484222618c3cd\n")
-		return
-	}
-
-	// now serialize once again
-	/*
-		serialised, _ := lheader.Serialize()
-		 if raw_data != hex.EncodeToString(serialised){
-		 	t.Error("Serialize Levin_Header Failed")
-		 }
-	*/
-
-}
-
-// test taken from https://github.com/paxos-bankchain/moneroutil/blob/435925b60c75c66c9e686df70d241b323a69539c/transaction_test.go
+//
 func Test_Transaction_Deserialisation_Height_1302238_second(t *testing.T) {
 
 	// transaction from height 1302238 txid be9d2cf9b473dbbb2c59ffb07b5d812516f94d64121d87ad61956386a4bc3843
@@ -211,6 +123,10 @@ func Test_Transaction_Deserialisation_Height_1302238_second(t *testing.T) {
 		t.Error("Serialize TX  Failed")
 	}
 
+	if tx.IsCoinbase() == true {
+		t.Errorf("be9d2cf9b473dbbb2c59ffb07b5d812516f94d64121d87ad61956386a4bc3843 is NOT Coinbase\n")
+	}
+
 }
 
 // test taken from  derod project block 72 txid 2c4738d3856e8e3e8f9fc4818a9197d4911af3010e067ec56d08c264627cb547
@@ -239,4 +155,475 @@ func Test_Transaction_Deserialisation_Height_72_second(t *testing.T) {
 		 }
 	*/
 
+}
+
+// test all error cases, except ring signature cases
+func Test_Edge_Cases(t *testing.T) {
+
+	tests := []struct {
+		name  string
+		txhex string
+	}{
+		{
+			name:  "Invalid  Version",
+			txhex: "80808080808080808080", // Major_Version is taking more than 9 bytes, trigger error
+		},
+		{
+			name:  "Invalid Unlock time",
+			txhex: "0280808080808080808080", // unlock time is taking more than 9 bytes, trigger error
+		},
+
+		{
+			name:  "vin length cannot be zero",
+			txhex: "020200", //  vin length cannot be zero, trigger error
+		},
+
+		{
+			name:  "Invalid vin length",
+			txhex: "020280808080808080808080", // invalid vin length is taking more than 9 bytes, trigger error
+		},
+
+		{
+			name: "Miner TX vin is invalid",
+			txhex: "02" + // version
+				"3c" + // unlock time
+				"01" + // vin length
+				"00" + // vin #1
+				"80808080808080808080" + // height gen input
+				"01" + // vout length
+				"ffffffffffff07" + // output #1 amount
+				"02" + // output 1 type
+				"0bf6522f9152fa26cd1fc5c022b1a9e13dab697f3acf4b4d0ca6950a867a1943" + // output #1 key
+				"21" + // extra length in bytes
+				"01" + // extra pubkey tag
+				"1d92826d0656958865a035264725799f39f6988faa97d532f972895de849496d" + // tx pubkey
+				"00", // RCT signature none
+		},
+
+		{
+			name: "Miner TX height gen is invalid",
+			txhex: "02" + // version
+				"3c" + // unlock time
+				"01" + // vin length
+				"ff" + // vin #1
+				"80808080808080808080" + // height gen input
+				"01" + // vout length
+				"ffffffffffff07" + // output #1 amount
+				"02" + // output 1 type
+				"0bf6522f9152fa26cd1fc5c022b1a9e13dab697f3acf4b4d0ca6950a867a1943" + // output #1 key
+				"21" + // extra length in bytes
+				"01" + // extra pubkey tag
+				"1d92826d0656958865a035264725799f39f6988faa97d532f972895de849496d" + // tx pubkey
+				"00", // RCT signature none
+		},
+
+		{
+			name: "TX Vout length is invalid",
+			txhex: "02" + // version
+				"3c" + // unlock time
+				"01" + // vin length
+				"ff" + // vin #1
+				"50" + // height gen input
+				"80808080808080808080" + // vout length
+				"ffffffffffff07" + // output #1 amount
+				"02" + // output 1 type
+				"0bf6522f9152fa26cd1fc5c022b1a9e13dab697f3acf4b4d0ca6950a867a1943" + // output #1 key
+				"21" + // extra length in bytes
+				"01" + // extra pubkey tag
+				"1d92826d0656958865a035264725799f39f6988faa97d532f972895de849496d" + // tx pubkey
+				"00", // RCT signature none
+		},
+
+		{
+			name: "TX Vout amount is invalid",
+			txhex: "02" + // version
+				"3c" + // unlock time
+				"01" + // vin length
+				"ff" + // vin #1
+				"50" + // height gen input
+				"01" + // vout length
+				"80808080808080808080" + // output #1 amount
+				"02" + // output 1 type
+				"0bf6522f9152fa26cd1fc5c022b1a9e13dab697f3acf4b4d0ca6950a867a1943" + // output #1 key
+				"21" + // extra length in bytes
+				"01" + // extra pubkey tag
+				"1d92826d0656958865a035264725799f39f6988faa97d532f972895de849496d" + // tx pubkey
+				"00", // RCT signature none
+		},
+
+		{
+			name: "TX Vout type is invalid",
+			txhex: "02" + // version
+				"3c" + // unlock time
+				"01" + // vin length
+				"ff" + // vin #1
+				"50" + // height gen input
+				"00" + // vout length
+				"80808080808080808080" + // output #1 amount
+				"02" + // output 1 type
+				"0bf6522f9152fa26cd1fc5c022b1a9e13dab697f3acf4b4d0ca6950a867a1943" + // output #1 key
+				"21" + // extra length in bytes
+				"01" + // extra pubkey tag
+				"1d92826d0656958865a035264725799f39f6988faa97d532f972895de849496d" + // tx pubkey
+				"00", // RCT signature none
+		},
+
+		{
+			name: "TX Vout type not VOUT_TO_KEY",
+			txhex: "02" + // version
+				"3c" + // unlock time
+				"01" + // vin length
+				"ff" + // vin #1
+				"00" + // height gen input
+				"01" + // vout length
+				"ffffffffffff07" + // output #1 amount
+				"00" + // output 1 type
+				"0bf6522f9152fa26cd1fc5c022b1a9e13dab697f3acf4b4d0ca6950a867a1943" + // output #1 key
+				"21" + // extra length in bytes
+				"01" + // extra pubkey tag
+				"1d92826d0656958865a035264725799f39f6988faa97d532f972895de849496d" + // tx pubkey
+				"00", // RCT signature none
+		},
+
+		{
+			name: "TX Extra length cannot be invalid",
+			txhex: "02" + // version
+				"3c" + // unlock time
+				"01" + // vin length
+				"ff" + // vin #1
+				"00" + // height gen input
+				"01" + // vout length
+				"ffffffffffff07" + // output #1 amount
+				"02" + // output 1 type
+				"0bf6522f9152fa26cd1fc5c022b1a9e13dab697f3acf4b4d0ca6950a867a1943" + // output #1 key
+				"80808080808080808080" + // extra length in bytes
+				"01" + // extra pubkey tag
+				"1d92826d0656958865a035264725799f39f6988faa97d532f972895de849496d" + // tx pubkey
+				"00", // RCT signature none
+		},
+	}
+
+	for _, test := range tests {
+		tx_raw, err := hex.DecodeString(test.txhex)
+		if err != nil {
+			t.Fatalf("Tx hex could not be hex decoded")
+		}
+
+		var tx Transaction
+		err = tx.DeserializeHeader(tx_raw)
+
+		if err == nil {
+			t.Fatalf("%s failed", test.name)
+		}
+
+	}
+
+}
+
+// test panic if transaction is without ins
+func Test_Edges_Serialization_0inputs(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("Transaction did not panic on 0 inputs")
+		}
+	}()
+
+	// The following is the code under test
+	var tx Transaction
+	tx.Serialize()
+}
+
+// test panic if transaction is without  outs or unknown vouts type
+func Test_Edges_Serialization_0outputs(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("Transaction did not panic on 0 outputs")
+		}
+	}()
+
+	// The following is the code under test
+	var tx Transaction
+	tx.Vin = append(tx.Vin, Txin_gen{Height: 99}) // add input height
+	tx.Serialize()
+}
+
+// test panic if transaction is without  unknown vouts type
+func Test_Edges_Serialization_invalidoutputs(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("Transaction did not panic on invalid outputs")
+		}
+	}()
+
+	// The following is the code under test
+	var tx Transaction
+	tx.Vin = append(tx.Vin, Txin_gen{Height: 99}) // add input height
+	tx.Vout = append(tx.Vout, Tx_out{Amount: 0, Target: "NULL"})
+	tx.Serialize()
+}
+
+// test panic if transaction is  invalid version
+func Test_Edges_Invalid_version(t *testing.T) {
+
+	// The following is the code under test
+	// mainnet genesis tx
+	Genesis_Tx_hex := "" +
+		"02" + // version
+		"3c" + // unlock time
+		"01" + // vin length
+		"ff" + // vin #1
+		"00" + // height gen input
+		"01" + // vout length
+		"ffffffffffff07" + // output #1 amount
+		"02" + // output 1 type
+		"0bf6522f9152fa26cd1fc5c022b1a9e13dab697f3acf4b4d0ca6950a867a1943" + // output #1 key
+		"21" + // extra length in bytes
+		"01" + // extra pubkey tag
+		"1d92826d0656958865a035264725799f39f6988faa97d532f972895de849496d" + // tx pubkey
+		"00" // RCT signature none
+
+	tx_data_blob, _ := hex.DecodeString(Genesis_Tx_hex)
+
+	var tx Transaction
+
+	err := tx.DeserializeHeader(tx_data_blob)
+	if err != nil {
+		t.Fatalf("Geneis Transaction could be deserialized")
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("Transaction did not panic on invalid version")
+		}
+	}()
+
+	tx.Version = 3
+	tx.GetHash() //panic since version is unknown
+}
+
+// this tx data is from our blockchain
+// txid 0dafab1f561c845e0163124e9dbf0c938b2cf157d47c3cab6aafd27f9b25a42b
+// height 730
+func Test_Vin_Edge_Cases(t *testing.T) {
+	/*
+	   // entire TX manually being decoded, so as tests can be written to edge out faults
+	   tx_hex :="02" + // version
+	   "00" + // unlock time
+	   "02" + // 2 vins
+	   "02" + // vin type INTO_KEY
+	   "00" + // amount of first vin
+	   "05" + // mixin
+	   "0b" + // first mixing 11
+	   "da01" + //// second mixing 218
+	   "8402" + // thirsd mixing 260
+	   "3b" +   // fourth mixin 59
+	   "55" +   // fifth mixin 85
+	   "779360329acf752076a97c5bb58b836a9b2da8820b9268945fcb40328740a3f7" + // 32 byte vout key
+	   "02" + // vin type INTO_KEY
+	   "00" + // amount of second value
+	   "05" + // mixin of second input
+	   "58" + // first ring member 58
+	   "74" + // second ring member 116
+	   "a503" + // third ring member 421
+	   "08" +   // fourth ring member 8
+	   "15"   // fifth ring member 21
+
+	   // remaining part ignored as not required for testing
+
+	*/
+
+	tests := []struct {
+		name  string
+		txhex string
+	}{
+
+		{
+			name: " Version NOT equal to 2",
+			txhex: "03" + // version
+				"00" + // unlock time
+				"02" + // 2 vins
+				"02" + // vin type INTO_KEY
+				"00" + // amount of first vin
+				"05" + // mixin
+				"0b" + // first mixing 11
+				"da01" + //// second mixing 218
+				"8402" + // thirsd mixing 260
+				"3b" + // fourth mixin 59
+				"55" + // fifth mixin 85
+				"779360329acf752076a97c5bb58b836a9b2da8820b9268945fcb40328740a3f7" + // 32 byte vout key
+				"02" + // vin type INTO_KEY
+				"00" + // amount of second value
+				"05" + // mixin of second input
+				"58" + // first ring member 58
+				"74" + // second ring member 116
+				"a503" + // third ring member 421
+				"08" + // fourth ring member 8
+				"15", // fifth ring member 21
+
+		},
+		{
+			name: " Amount NOT ZERO",
+			txhex: "02" + // version
+				"00" + // unlock time
+				"02" + // 2 vins
+				"02" + // vin type INTO_KEY
+				"05" + // amount of first vin
+				"05" + // mixin
+				"0b" + // first mixing 11
+				"da01" + //// second mixing 218
+				"8402" + // thirsd mixing 260
+				"3b" + // fourth mixin 59
+				"55" + // fifth mixin 85
+				"779360329acf752076a97c5bb58b836a9b2da8820b9268945fcb40328740a3f7" + // 32 byte vout key
+				"02" + // vin type INTO_KEY
+				"00" + // amount of second value
+				"05" + // mixin of second input
+				"58" + // first ring member 58
+				"74" + // second ring member 116
+				"a503" + // third ring member 421
+				"08" + // fourth ring member 8
+				"15", // fifth ring member 21
+
+		},
+
+		{
+			name: " Amount Invalid",
+			txhex: "02" + // version
+				"00" + // unlock time
+				"02" + // 2 vins
+				"02" + // vin type INTO_KEY
+				"80808080808080808080" + // amount of first vin
+				"05" + // mixin
+				"0b" + // first mixing 11
+				"da01" + //// second mixing 218
+				"8402" + // thirsd mixing 260
+				"3b" + // fourth mixin 59
+				"55" + // fifth mixin 85
+				"779360329acf752076a97c5bb58b836a9b2da8820b9268945fcb40328740a3f7" + // 32 byte vout key
+				"02" + // vin type INTO_KEY
+				"00" + // amount of second value
+				"05" + // mixin of second input
+				"58" + // first ring member 58
+				"74" + // second ring member 116
+				"a503" + // third ring member 421
+				"08" + // fourth ring member 8
+				"15", // fifth ring member 21
+
+		},
+
+		{
+			name: " Mixin Invalid",
+			txhex: "02" + // version
+				"00" + // unlock time
+				"02" + // 2 vins
+				"02" + // vin type INTO_KEY
+				"00" + // amount of first vin
+				"80808080808080808080" + // mixin
+				"0b" + // first mixing 11
+				"da01" + //// second mixing 218
+				"8402" + // thirsd mixing 260
+				"3b" + // fourth mixin 59
+				"55" + // fifth mixin 85
+				"779360329acf752076a97c5bb58b836a9b2da8820b9268945fcb40328740a3f7" + // 32 byte vout key
+				"02" + // vin type INTO_KEY
+				"00" + // amount of second value
+				"05" + // mixin of second input
+				"58" + // first ring member 58
+				"74" + // second ring member 116
+				"a503" + // third ring member 421
+				"08" + // fourth ring member 8
+				"15", // fifth ring member 21
+
+		},
+		{
+			name: " Mixin member Invalid",
+			txhex: "02" + // version
+				"00" + // unlock time
+				"02" + // 2 vins
+				"02" + // vin type INTO_KEY
+				"00" + // amount of first vin
+				"05" + // mixin
+				"80808080808080808080" + // first mixing 11
+				"da01" + //// second mixing 218
+				"8402" + // thirsd mixing 260
+				"3b" + // fourth mixin 59
+				"55" + // fifth mixin 85
+				"779360329acf752076a97c5bb58b836a9b2da8820b9268945fcb40328740a3f7" + // 32 byte vout key
+				"02" + // vin type INTO_KEY
+				"00" + // amount of second value
+				"05" + // mixin of second input
+				"58" + // first ring member 58
+				"74" + // second ring member 116
+				"a503" + // third ring member 421
+				"08" + // fourth ring member 8
+				"15", // fifth ring member 21
+
+		},
+
+		{
+			name: " Mixin size huge",
+			txhex: "02" + // version
+				"00" + // unlock time
+				"02" + // 2 vins
+				"02" + // vin type INTO_KEY
+				"00" + // amount of first vin
+				"ff7f" + // mixin
+				"0b" + // first mixing 11
+				"da01" + //// second mixing 218
+				"8402" + // thirsd mixing 260
+				"3b" + // fourth mixin 59
+				"55" + // fifth mixin 85
+				"779360329acf752076a97c5bb58b836a9b2da8820b9268945fcb40328740a3f7" + // 32 byte vout key
+				"02" + // vin type INTO_KEY
+				"00" + // amount of second value
+				"05" + // mixin of second input
+				"58" + // first ring member 58
+				"74" + // second ring member 116
+				"a503" + // third ring member 421
+				"08" + // fourth ring member 8
+				"15", // fifth ring member 21
+
+		},
+
+		{
+			name: "Different mixin for different inout",
+			txhex: "02" + // version
+				"00" + // unlock time
+				"02" + // 2 vins
+				"02" + // vin type INTO_KEY
+				"00" + // amount of first vin
+				"05" + // mixin
+				"0b" + // first mixing 11
+				"da01" + //// second mixing 218
+				"8402" + // thirsd mixing 260
+				"3b" + // fourth mixin 59
+				"55" + // fifth mixin 85
+				"779360329acf752076a97c5bb58b836a9b2da8820b9268945fcb40328740a3f7" + // 32 byte vout key
+				"02" + // vin type INTO_KEY
+				"00" + // amount of second value
+				"04" + // mixin of second input
+				"58" + // first ring member 58
+				"74" + // second ring member 116
+				"a503" + // third ring member 421
+				"08" + // fourth ring member 8
+				"15", // fifth ring member 21
+
+		},
+	}
+
+	for _, test := range tests {
+
+		tx_raw, err := hex.DecodeString(test.txhex)
+		if err != nil {
+			t.Fatalf("Tx hex could not be hex decoded")
+		}
+
+		var tx Transaction
+		err = tx.DeserializeHeader(tx_raw)
+
+		if err == nil {
+			t.Fatalf("%s failed", test.name)
+		}
+
+	}
 }

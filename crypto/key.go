@@ -32,6 +32,15 @@ func (k Key) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("%x", k[:])), nil
 }
 
+func (k *Key) UnmarshalText(data []byte) (err error) {
+	byteSlice, _ := hex.DecodeString(string(data))
+	if len(byteSlice) != 32 {
+		return fmt.Errorf("Incorrect key size")
+	}
+	copy(k[:], byteSlice)
+	return
+}
+
 func (k Key) String() string {
 	return fmt.Sprintf("%x", k[:])
 }
@@ -74,6 +83,7 @@ func (p *Key) PublicKey() (pubKey *Key) {
 }
 
 // tests whether the key is valid ( represents a point on the curve )
+// this is equivalent to bool crypto_ops::check_key(const public_key &key)
 func (k *Key) Public_Key_Valid() bool {
 	var point ExtendedGroupElement
 	return point.FromBytes(k)
@@ -90,6 +100,8 @@ func (p *Key) HashToEC() (result *ExtendedGroupElement) {
 	var p2 CompletedGroupElement
 	h := Key(Keccak256(p[:]))
 	p1.FromBytes(&h)
+
+	// fmt.Printf("p1 %+v\n", p1)
 	GeMul8(&p2, &p1)
 	p2.ToExtended(result)
 	return
@@ -97,6 +109,28 @@ func (p *Key) HashToEC() (result *ExtendedGroupElement) {
 
 func (p *Key) HashToPoint() (result Key) {
 	extended := p.HashToEC()
+	extended.ToBytes(&result)
+	return
+}
+
+// compatible with hashToPointSimple
+// NOTE: this is incompatible with HashToPoint ( though it should have been)
+// there are no side-effects or degradtion of crypto, due to this
+// however, the mistakes have to kept as they were in original code base
+// this function is only used to generate H from G
+func (p *Key) HashToPointSimple() (result Key) {
+	h := Key(Keccak256(p[:]))
+	extended := new(ExtendedGroupElement)
+	extended.FromBytes(&h)
+
+	// convert extended to projective
+	var p1 ProjectiveGroupElement
+
+	extended.ToProjective(&p1)
+	var p2 CompletedGroupElement
+
+	GeMul8(&p2, &p1)
+	p2.ToExtended(extended)
 	extended.ToBytes(&result)
 	return
 }
@@ -157,6 +191,9 @@ func skGen() Key {
 	ScReduce32(skey)
 	return *skey
 }
+func SkGen() Key {
+	return skGen()
+}
 
 func (k *Key) ToExtended() (result *ExtendedGroupElement) {
 	result = new(ExtendedGroupElement)
@@ -170,6 +207,7 @@ func identity() (result *Key) {
 	result[0] = 1
 	return
 }
+
 func CurveIdentity() (result Key) {
 	result = Identity
 	return result
@@ -199,10 +237,10 @@ func HashToScalar(data ...[]byte) (result *Key) {
 
 // does a * P where a is a scalar and P is an arbitrary point
 func ScalarMultKey(Point *Key, scalar *Key) (result *Key) {
-	P := new(ExtendedGroupElement)
+	var P ExtendedGroupElement
 	P.FromBytes(Point)
-	resultPoint := new(ProjectiveGroupElement)
-	GeScalarMult(resultPoint, scalar, P)
+	var resultPoint ProjectiveGroupElement
+	GeScalarMult(&resultPoint, scalar, &P)
 	result = new(Key)
 	resultPoint.ToBytes(result)
 	return
@@ -222,12 +260,12 @@ func ScalarMultH(scalar *Key) (result *Key) {
 // add two points together
 func AddKeys(sum, k1, k2 *Key) {
 	a := k1.ToExtended()
-	b := new(CachedGroupElement)
-	k2.ToExtended().ToCached(b)
-	c := new(CompletedGroupElement)
-	geAdd(c, a, b)
-	tmp := new(ExtendedGroupElement)
-	c.ToExtended(tmp)
+	var b CachedGroupElement
+	k2.ToExtended().ToCached(&b)
+	var c CompletedGroupElement
+	geAdd(&c, a, &b)
+	var tmp ExtendedGroupElement
+	c.ToExtended(&tmp)
 	tmp.ToBytes(sum)
 	return
 }
@@ -235,8 +273,8 @@ func AddKeys(sum, k1, k2 *Key) {
 // compute a*G + b*B
 func AddKeys2(result, a, b, B *Key) {
 	BPoint := B.ToExtended()
-	RPoint := new(ProjectiveGroupElement)
-	GeDoubleScalarMultVartime(RPoint, b, BPoint, a)
+	var RPoint ProjectiveGroupElement
+	GeDoubleScalarMultVartime(&RPoint, b, BPoint, a)
 	RPoint.ToBytes(result)
 	return
 }
@@ -245,11 +283,21 @@ func AddKeys2(result, a, b, B *Key) {
 //aAbB = a*A + b*B where a, b are scalars, A, B are curve points
 //B must be input after applying "precomp"
 func AddKeys3(result *Key, a *Key, A *Key, b *Key, B_Precomputed *[8]CachedGroupElement) {
-	A_Point := new(ExtendedGroupElement)
+	var A_Point ExtendedGroupElement
 	A_Point.FromBytes(A)
 
-	result_projective := new(ProjectiveGroupElement)
-	GeDoubleScalarMultPrecompVartime(result_projective, a, A_Point, b, B_Precomputed)
+	var result_projective ProjectiveGroupElement
+	GeDoubleScalarMultPrecompVartime(&result_projective, a, &A_Point, b, B_Precomputed)
+	result_projective.ToBytes(result)
+
+}
+
+//addKeys3_3  this is similiar to addkeys3 except it allows for use of precomputed A,B
+//aAbB = a*A + b*B where a, b are scalars, A, B are curve points
+//A,B must be input after applying "precomp"
+func AddKeys3_3(result *Key, a *Key, A_Precomputed *[8]CachedGroupElement, b *Key, B_Precomputed *[8]CachedGroupElement) {
+	var result_projective ProjectiveGroupElement
+	GeDoubleScalarMultPrecompVartime2(&result_projective, a, A_Precomputed, b, B_Precomputed)
 	result_projective.ToBytes(result)
 
 }
@@ -265,23 +313,6 @@ func SubKeys(diff, k1, k2 *Key) {
 	c.ToExtended(tmp)
 	tmp.ToBytes(diff)
 	return
-}
-
-// this gives you a commitment from an amount
-// this is used to convert tx fee or miner tx amount to commitment
-func Commitment_From_Amount(amount uint64) Key {
-	return *(ScalarMultH(d2h(amount)))
-}
-
-// this is used to convert miner tx commitment to  mask
-// equivalent to rctOps.cpp zeroCommit
-func ZeroCommitment_From_Amount(amount uint64) Key {
-	mask := *(identity())
-	mask = ScalarmultBase(mask)
-	am := d2h(amount)
-	bH := ScalarMultH(am)
-	AddKeys(&mask, &mask, bH)
-	return mask
 }
 
 // zero fill the key

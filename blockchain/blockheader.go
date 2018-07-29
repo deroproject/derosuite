@@ -18,42 +18,44 @@ package blockchain
 
 //import "fmt"
 import "github.com/deroproject/derosuite/crypto"
-
-// this is used to print blockheader for the rpc and the daemon
-type BlockHeader_Print struct {
-	Depth         uint64 `json:"depth"`
-	Difficulty    uint64 `json:"difficulty"`
-	Hash          string `json:"hash"`
-	Height        uint64 `json:"height"`
-	Major_Version uint64 `json:"major_version"`
-	Minor_Version uint64 `json:"minor_version"`
-	Nonce         uint64 `json:"nonce"`
-	Orphan_Status bool   `json:"orphan_status"`
-	Reward        uint64 `json:"reward"`
-	Prev_Hash     string `json:"prev_hash"`
-	Timestamp     uint64 `json:"timestamp"`
-}
+import "github.com/deroproject/derosuite/structures"
 
 /* fill up the above structure from the blockchain */
-func (chain *Blockchain) GetBlockHeader(hash crypto.Hash) (result BlockHeader_Print, err error) {
+func (chain *Blockchain) GetBlockHeader(hash crypto.Hash) (result structures.BlockHeader_Print, err error) {
 
-	bl, err := chain.Load_BL_FROM_ID(hash)
+	dbtx, err := chain.store.BeginTX(false)
+	if err != nil {
+		logger.Warnf("Could NOT add block to chain. Error opening writable TX, err %s", err)
+		return
+	}
+
+	defer dbtx.Rollback()
+
+	bl, err := chain.Load_BL_FROM_ID(dbtx, hash)
 	if err != nil {
 		return
 	}
 
-	result.Height = chain.Load_Height_for_BL_ID(hash)
-	result.Depth = chain.Get_Height() - result.Height - 1
-	result.Difficulty = chain.Get_Difficulty_At_Block(hash)
+	result.TopoHeight = -1
+	if chain.Is_Block_Topological_order(dbtx, hash) {
+		result.TopoHeight = chain.Load_Block_Topological_order(dbtx, hash)
+	}
+	result.Height = chain.Load_Height_for_BL_ID(dbtx, hash)
+	result.Depth = chain.Get_Height() - result.Height
+	result.Difficulty = chain.Load_Block_Difficulty(dbtx, hash).String()
 	result.Hash = hash.String()
-	result.Height = chain.Load_Height_for_BL_ID(hash)
 	result.Major_Version = uint64(bl.Major_Version)
 	result.Minor_Version = uint64(bl.Minor_Version)
 	result.Nonce = uint64(bl.Nonce)
 	result.Orphan_Status = chain.Is_Block_Orphan(hash)
-	result.Reward = chain.Load_Block_Reward(hash)
+	result.SyncBlock = chain.IsBlockSyncBlockHeight(dbtx, hash)
+	result.Reward = chain.Load_Block_Total_Reward(dbtx, hash)
+	result.TXCount = int64(len(bl.Tx_hashes))
 
-	result.Prev_Hash = bl.Prev_Hash.String()
+	for i := range bl.Tips {
+		result.Tips = append(result.Tips, bl.Tips[i].String())
+	}
+	//result.Prev_Hash = bl.Prev_Hash.String()
 	result.Timestamp = bl.Timestamp
 
 	return

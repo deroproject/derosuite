@@ -16,7 +16,7 @@
 
 package emission
 
-//import "fmt"
+import "fmt"
 import "math/big"
 import "github.com/deroproject/derosuite/config"
 
@@ -66,11 +66,8 @@ func GetBlockReward(bl_median_size uint64,
 	// block is bigger than median size , we must calculate it
 	if bl_current_size > 2*bl_median_size {
 		//MERROR("Block cumulative size is too big: " << current_block_size << ", expected less than " << 2 * median_size);
-		panic("Block size is too big\n")
-		//return 0xffffffff00000000
+		panic(fmt.Sprintf("Block size is too big current size %d  max possible size %d", bl_current_size, 2*bl_median_size))
 	}
-
-	//panic("This mode of base reward calculation is not yet implemented\n")
 
 	multiplicand := (2 * bl_median_size) - bl_current_size
 	multiplicand = multiplicand * bl_current_size
@@ -95,6 +92,27 @@ func GetBlockReward(bl_median_size uint64,
 	if reward_lo > base_reward {
 		panic("Reward must be less than base reward\n")
 	}
-
 	return reward_lo
+}
+
+// atlantis has very simple block reward
+// since our chain has already bootstrapped
+//  FIXME this will not workaround , when already already_generated_coins wraps around
+// but we have few years, atleast 6-7 to fix it
+func GetBlockReward_Atlantis(hard_fork_version int64, already_generated_coins uint64) (reward uint64) {
+
+	target := uint64(120) // initial target was 120 secs however difficult targeted 180 secs
+	target_minutes := target / 60
+	emission_speed_factor := config.COIN_EMISSION_SPEED_FACTOR - (target_minutes - 1)
+
+	base_reward := (config.COIN_MONEY_SUPPLY - already_generated_coins) >> emission_speed_factor
+	if base_reward < (config.COIN_FINAL_SUBSIDY_PER_MINUTE * target_minutes) {
+		base_reward = config.COIN_FINAL_SUBSIDY_PER_MINUTE * target_minutes
+	}
+
+	// however the new target is less than 10 secs, so divide the reward into equal parts
+	//base_reward = (base_reward * config.BLOCK_TIME)/ target
+	base_reward = (base_reward * config.BLOCK_TIME) / 180 // original daemon emission schedule
+
+	return base_reward
 }

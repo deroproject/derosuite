@@ -1,130 +1,96 @@
-# Source code will be updated in coming weeks.
-# Download latest pre-compiled binaries: http://seeds.dero.io/alpha/
-# OS supported: MacOS, Solaris, FreeBSD, OpenBSD, Windows, Linux, arm devices etc. 
+# DERO: Secure, Private CryptoNote DAG Blockchain with Smart Contracts
+## ABOUT DERO PROJECT
+DERO is decentralized DAG(Directed Acyclic Graph) based blockchain with enhanced reliability, privacy, security, and usability. Consensus algorithm is PoW based on original cryptonight. DERO is industry leading and the first blockchain to have bulletproofs, TLS encrypted Network.
 
-# DERO: Secure, Private Blockchain with Smart Contracts
+### DERO blockchain has the following salient features:
+ - DAG Based: No orphan blocks, No soft-forks.
+ - 12 Second Block time.
+ - Extremely fast transactions with 2 minutes confirmation time.
+ - SSL/TLS P2P Network.
+ - CryptoNote: Fully Encrypted Blockchain
+ - BulletProofs: Zero Knowledge range-proofs(NIZK).
+ - Ring signatures.
+ - Fully Auditable Supply.
+ - DERO blockchain is written from scratch in Golang. 
+ - Developed and maintained by original developers.
 
-## DERO Project :  Cryptonote Privacy + Smart contracts 
+### DERO DAG
+DERO DAG implementation builds outs a main chain from the DAG network of blocks which refers to main blocks (100% reward) and side blocks (67% rewards). Side blocks contribute to chain PoW security and thus traditional 51% attacks are not possible on DERO network. If DERO network finds another block at the same height, instead of choosing one, DERO include both blocks. Thus, rendering the 51% attack futile.
 
-## Status Update Release 2:
 
-DERO blockchain is a completely new blockchain supporting CryptoNote Privacy and Smart Contracts. DERO blockchain is being implemented in Golang.
+Traditional Blockchains process blocks as single unit of computation(if a double-spend tx occurs within the block, entire block is rejected). However DERO network accepts such blocks since DERO blockchain considers transaction as a single unit of computation.DERO blocks may contain duplicate or double-spend transactions which are filtered by client protocol and ignored by the network. DERO DAG processes transactions atomically one transaction at a time.
 
-We are pleased to announce Status Update Release 2 of DERO Blockchain.
-Release 2 include following:
-1. Dero daemon
-2. Dero wallet both offline and online 
-3. Dero Explorer 
 
-**NOTE: All above are strictly for evaluation and have limitations, see below for more details.**
+**DERO DAG in action**
+![DERO DAG](http://seeds.dero.io/images/Dag1.jpeg)
 
-**Download latest pre-compiled alpha binaries from http://seeds.dero.io/alpha/**
 
+## Downloads
 | Operating System | Download                                 |
 | ---------------- | ---------------------------------------- |
-| Windows 32       | http://seeds.dero.io/build/dero_windows_386.zip |
-| Windows 64       | http://seeds.dero.io/build/dero_windows_amd64.zip |
-| Mac 10.8 & Later | http://seeds.dero.io/build/dero_darwin_amd64.tar.gz |
-| Linux 32         | http://seeds.dero.io/build/dero_linux_386.tar.gz |
-| Linux 64         | http://seeds.dero.io/build/dero_linux_amd64.tar.gz |
-| OpenBSD 64       | http://seeds.dero.io/build/dero_openbsd_amd64.tar.gz |
-| FreeBSD 64       | http://seeds.dero.io/build/dero_freebsd_amd64.tar.gz |
-| Linux ARM 64     | http://seeds.dero.io/build/dero_linux_arm64.tar.gz |
-| Solaris AMD64    | http://seeds.dero.io/build/dero_solaris_amd64.tar.gz |
-| More Builds      | http://seeds.dero.io/build/              |
+| Windows 32       | https://github.com/deroproject/derosuite/releases |
+| Windows 64       | https://github.com/deroproject/derosuite/releases |
+| Mac 10.8 & Later | https://github.com/deroproject/derosuite/releases |
+| Linux 32         | https://github.com/deroproject/derosuite/releases |
+| Linux 64         | https://github.com/deroproject/derosuite/releases |
+| OpenBSD 64       | https://github.com/deroproject/derosuite/releases |
+| FreeBSD 64       | https://github.com/deroproject/derosuite/releases |
+| Linux ARM 64     | https://github.com/deroproject/derosuite/releases |
+| More Builds      | https://github.com/deroproject/derosuite/releases |
+
+### DERO Quickstart
+1. Choose your Operating System and [download Dero software](https://github.com/deroproject/derosuite/releases)
+2. Extract the file and change to extracted folder in cmd prompt.
+3. Start derod daemon and wait to fully sync till prompt goes green.
+4. Open new cmd prompt and run dero-wallet-cli.
 
 
-**NOTE: DO NOT MIGRATE to this daemon. This is strictly for evaluation.**
-
-**DERO Daemon in action**\
-![Status-Update-Release-2 DERO Daemon](http://seeds.dero.io/images/derod.png)\
-
-**DERO Wallet in action**\
-![Status-Update-Release-2 DERO Wallet](http://seeds.dero.io/images/dero_wallet_offline.png)\
-
-**DERO Explorer in action**\
-![Status-Update-Release-2 DERO Explorer](http://seeds.dero.io/images/dero_explorer.png)
-
-In the status update release 2,  Golang DERO daemon can sync and verify blockchain and show users their wallet balance with the existing DERO network. This update marks the release of
-
-1. **DERO Wallet** : DERO Golang version of wallet has easy to use menu-driven interface. Dero wallet can be used in both on-line and completely off-line modes. 
-  It can be used to 
- - create new accounts,
- - check balance,
- - display and  recover using recovery seeds, ( 25 words). The seeds are compatible with existing wallet.
- - Eleven languages are supported for recovery seeds 
-    - English,
-    - Japanese (日本語)
-    - Chinese_Simplified(简体中文 (中国)),
-    - Dutch (Nederlands),
-    - Esperanto ,
-    - Russian (русский язык),
-    - Spanish (Español),
-    - Portuguese (Português),
-    - French (Français),
-    - German (Deutsch),
-    - Italian (Italiano),
+For detailed walk through to create/restore Dero wallet pls see: [Create/Restore DERO Wallet in one minute](https://forum.dero.io/t/create-backup-restore-dero-wallet-in-one-minute/110)
 
 
- - display and  recover using recovery key (64 hex chars)
- - view only wallets. 
- - Online mode ( connects live to the daemon using RPC)
- - Offline mode ( works without internet or daemon). The wallet can work in completely offline mode.  To use the wallet in offline mode, download and copy this file URL to wallet directory. You can yourself create this data file if you run the golang daemon  and execute ```wget http://127.0.0.1:9999/getoutputs.bin ``` . 
-
-2. **DERO Blockchain Explorer** : Blockchain Explorer is tool to monitor and interact the DERO network and it's state. It allows anyone to browse/parse/locate any transaction/block etc. The tool works over RPC interface and connects with dero daemon golang version. Anyone running the golang dero daemon, can run the explorer and immediately and access it using browser at  http://127.0.0.1:8080/ . This increases privacy as some users do not want to use the publicly hosted block explorers. Dero Explorer is almost complete (except 1 feature). DERO Explorer will expand as Smart Contracts are supported.
-
-3. **DERO Daemon**: Dero daemon is mostly complete. However, mining has been disabled until more testing is complete.  RPC is implemented.
+**DERO Daemon in action**
+![DERO Daemon](http://seeds.dero.io/images/derod1.png)
 
 
+**DERO Wallet in action**
+![DERO Wallet](http://seeds.dero.io/images/wallet1.jpeg)
 
-**REMEMBER to save your seeds (otherwise you will loose access to wallet when you exit wallet program).**
-
-
-
+## Technical
 For specific details of current DERO core (daemon) implementation and capabilities, see below:
 
-1.  **Cryptonight Hash:** This is an ASIC resistant, memory-bound algorithm. This provides assurance that all miners are equal. ( No miner has any advantage over common miners).
-2.  **Wire protocol (90% completed):** This protocol is used to exchange data between 2 DERO daemon nodes. At this point, Go daemon  can connect to C daemon and vice-versa, sync blockchain and exchange, already possible. Complete interoperability has been achieved. This has 3 sub protocols:
-   1. **Levin Protocol:** Bottom most layer, basically message framing.
-   2. **P2P Protocol:** Handshake exchange, P2P commands and timed synchronization.
-   3. **CryptoNote Protocol:** This layers controls exchange of blocks, transactions and blockchain itself.
-3.  **Pederson Commitment:** (Part of ring confidential transactions): Pederson commitment algorithm is a cryptographic primitive that allows user to commit to a chosen value  while keeping it hidden to others. Pederson commitment  is used to hide all amounts without revealing the actual amount. It is a homomorphic commitment scheme.
-4.  **Borromean Signature:**  (Part of ring confidential transactions):  Borromean Signatures are used to prove that the commitment has a specific value, without revealing the value itself.
-5.  **Additive Homomorphic Encryption:** Additive Homomorphic Encryption is used to prove that sum of encrypted Input transaction amounts is EQUAL to sum of encrypted output amounts. This is based on Homomorphic Pederson commitment scheme.
-6.  **Multilayered Linkable Spontaneous Anonymous Group (MLSAG) :** (Part of ring confidential transactions): MLSAG gives DERO untraceability and increases privacy and fungibility. MLSAG is a user controlled parameter ( Mixin) which the user can change to improve his privacy. Mixin of minimal amount is enforced and user cannot disable it.
-7.  **Ring Confidential Transactions:** Gives untraceability , privacy and fungibility while making sure that the system is stable and secure.
-8.  **Core-Consensus Protocol implemented:** Consensus protocol serves 2 major purpose
+1. **DAG:** No orphan blocks, No soft-forks.
+2. **BulletProofs:** Zero Knowledge range-proofs(NIZK)
+3. **Cryptonight Hash:** This is an ASIC resistant, memory-bound algorithm. This provides assurance that all miners are equal. ( No miner has any advantage over common miners).
+4. **P2P Protocol:** This layers controls exchange of blocks, transactions and blockchain itself.
+5.  **Pederson Commitment:** (Part of ring confidential transactions): Pederson commitment algorithm is a cryptographic primitive that allows user to commit to a chosen value  while keeping it hidden to others. Pederson commitment  is used to hide all amounts without revealing the actual amount. It is a homomorphic commitment scheme.
+6.  **Borromean Signature:**  (Part of ring confidential transactions):  Borromean Signatures are used to prove that the commitment has a specific value, without revealing the value itself.
+7.  **Additive Homomorphic Encryption:** Additive Homomorphic Encryption is used to prove that sum of encrypted Input transaction amounts is EQUAL to sum of encrypted output amounts. This is based on Homomorphic Pederson commitment scheme.
+8.  **Multilayered Linkable Spontaneous Anonymous Group (MLSAG) :** (Part of ring confidential transactions): MLSAG gives DERO untraceability and increases privacy and fungibility. MLSAG is a user controlled parameter ( Mixin) which the user can change to improve his privacy. Mixin of minimal amount is enforced and user cannot disable it.
+9.  **Ring Confidential Transactions:** Gives untraceability , privacy and fungibility while making sure that the system is stable and secure.
+10.  **Core-Consensus Protocol implemented:** Consensus protocol serves 2 major purpose
    1. Protects the system from adversaries and protects it from forking and tampering.
    2. Next block in the chain is the one and only correct version of truth ( balances).
-9.  **Proof-of-Work(PoW) algorithm:**  PoW part of core consensus protocol which is used to cryptographically prove that X amount of work has been done to successfully find a block. To deter use of specialized hardware,  an ASIC resistant, memory bound  cryptonight algorithm is used in DERO project.
-10.  **Difficulty algorithm**: Difficulty algorithm controls the system so as blocks are found roughly at the same speed, irrespective of the number and amount of mining power deployed.
-11.  **Serialization/De-serialization of blocks**: Capability to encode/decode/process blocks .
-12.  **Serialization/De-serialization of transactions**: Capability to encode/decode/process transactions.
-13.  **Transaction validity and verification**: Any transactions flowing within the DERO network are validated,verified
-14.  **Mempool**:  Mempool has been implemented .
-15.  **Socks proxy:** Socks proxy has been implemented and integrated within the daemon to decrease user identifiability and  improve user anonymity.
-16.  **Interactive daemon** can print blocks, txs, even entire blockchain from within the daemon 
-17.  **status, diff, print_bc, print_block, print_tx** and several other commands implemented
-18.  GO DERO Daemon has both mainnet, testnet support.
-19.  Tree-hash for transactions (based on keccak): This merkle root allows user to verify transactions as needed without adding transaction body to block header.
+11.  **Proof-of-Work(PoW) algorithm:**  PoW part of core consensus protocol which is used to cryptographically prove that X amount of work has been done to successfully find a block. To deter use of specialized hardware,  an ASIC resistant, memory bound  cryptonight algorithm is used in DERO project.
+12.  **Difficulty algorithm**: Difficulty algorithm controls the system so as blocks are found roughly at the same speed, irrespective of the number and amount of mining power deployed.
+13.  **Serialization/De-serialization of blocks**: Capability to encode/decode/process blocks .
+14.  **Serialization/De-serialization of transactions**: Capability to encode/decode/process transactions.
+15.  **Transaction validity and verification**: Any transactions flowing within the DERO network are validated,verified.
+16.  **Socks proxy:** Socks proxy has been implemented and integrated within the daemon to decrease user identifiability and  improve user anonymity.
+17.  **Interactive daemon** can print blocks, txs, even entire blockchain from within the daemon 
+18.  **status, diff, print_bc, print_block, print_tx** and several other commands implemented
+19.  GO DERO Daemon has both mainnet, testnet support.
 20.  **Enhanced Reliability, Privacy, Security, Useability, Portabilty assured.** For discussion on each point how pls visit forum.
 
+## Crypto
+Secure and fast crypto is the basic necessity of this project and adequate amount of time has been devoted to develop/study/implement/audit it. Most of the crypto such as ring signatures have been studied by various researchers and are in production by number of projects. As far as the Bulletproofs are considered, since DERO is the first one to implement/deploy, they have been given a more detailed look. First, a bare bones bulletproofs was implemented, then implementations in development were studied (Benedict Bunz,XMR, Dalek Bulletproofs) and thus improving our own implementation.Some new improvements were discovered and implemented (There are number of other improvements which are not explained here). Major improvements are in the Double-Base Double-Scalar Multiplication while validating bulletproofs. A typical bulletproof takes ~15-17 ms to verify. Optimised bulletproofs takes ~1 to ~2 ms(simple bulletproof, no aggregate/batching). Since, in the case of bulletproofs the bases are fixed, we can use precompute table to convert 64*2 Base Scalar multiplication into doublings and additions (NOTE: We do not use Bos-Coster/Pippienger methods). This time can be again easily decreased to .5 ms with some more optimizations.With batching and aggregation, 5000 range-proofs (~2500 TX) can be easily verified on even a laptop. The implementation for bulletproofs is in github.com/deroproject/derosuite/crypto/ringct/bulletproof.go , optimized version is in github.com/deroproject/derosuite/crypto/ringct/bulletproof_ultrafast.go
 
-
-The daemon and other programs are only for limited testing and evaluation purposes only.
-
-**NOTE: DO NOT MIGRATE to this daemon. This is strictly for evaluation.**
-
-**NOTE:** Following limitations apply in the current derosuite version.
-
-- Daemon mining is disabled until more testing complete.
-- The wallet cannot create and send new transactions.
-- The golang versions of derosuite are using non-standard ports so as it does NOT clash with already running daemon.
+There are other optimizations such as base-scalar multiplication could be done in less than a microsecond. Some of these optimizations are not yet deployed and may be deployed at a later stage.
 
 ## Build:
 In go workspace: **go get -u github.com/deroproject/derosuite/...**
-​    
-Check bin folder for derod, explorer and wallet  binaries. Use golang-1.9 version minimum.
+
+Check bin folder for derod, explorer and wallet  binaries. Use golang-1.10.3 version minimum.
+
 
 
 For technical issues and discussion, please visit https://forum.dero.io
@@ -182,5 +148,7 @@ pKxKP0O5AFM7b7INbQEAtE3lAIBUA31x3fjC5L6UyGk/a2ssOWTsJx98YxMcPhs=
 =H4Qj
 -----END PGP PUBLIC KEY BLOCK-----
 ```
+
+
 
 

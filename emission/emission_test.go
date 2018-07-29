@@ -55,4 +55,74 @@ func Test_Emission_Rewards(t *testing.T) {
 		t.Errorf("Block reward failed for 3rd block estm %d calculated %d\n", expected, calculated)
 	}
 
+	// 4 consecutive blocks were filled so test them
+	// tests if the block size is greater than median block ( penalty )
+	// test from block
+	bl_median_size = 300000
+	bl_current_size = 301174
+	already_generated_coins = 3160947266765937256
+	calculated = GetBlockReward(bl_median_size, bl_current_size, already_generated_coins, hard_fork_version, fee)
+	expected = uint64(29154897151057)
+	if calculated != expected {
+		t.Errorf("Block reward failed for 38383 block estm %d calculated %d\n", expected, calculated)
+	}
+
+	bl_median_size = 300000
+	bl_current_size = 301237
+	already_generated_coins = 3160976421663088313
+	calculated = GetBlockReward(bl_median_size, bl_current_size, already_generated_coins, hard_fork_version, fee)
+	expected = uint64(29154792337976)
+	if calculated != expected {
+		t.Errorf("Block reward failed for 38384 block estm %d calculated %d\n", expected, calculated)
+	}
+
+	bl_median_size = 300000
+	bl_current_size = 301745
+	already_generated_coins = 3161005576455426289
+	calculated = GetBlockReward(bl_median_size, bl_current_size, already_generated_coins, hard_fork_version, fee)
+	expected = uint64(29154245997471)
+	if calculated != expected {
+		t.Errorf("Block reward failed for 38385 block estm %d calculated %d\n", expected, calculated)
+	}
+
+	bl_median_size = 300000
+	bl_current_size = 302406
+	already_generated_coins = 3161034730701423760
+	calculated = GetBlockReward(bl_median_size, bl_current_size, already_generated_coins, hard_fork_version, fee)
+	expected = uint64(29153301544320)
+	if calculated != expected {
+		t.Errorf("Block reward failed for 38386 block estm %d calculated %d \n", expected, calculated)
+	}
+
+	// TODO test trickle emission
+	bl_median_size = 0
+	bl_current_size = 0
+	already_generated_coins = 0xffffffffffffffff
+	calculated = GetBlockReward(bl_median_size, bl_current_size, already_generated_coins, hard_fork_version, fee)
+	expected = uint64(600000000000)
+	if calculated != expected {
+		t.Errorf("Block reward failed for trickle block estm %d calculated %d \n", expected, calculated)
+	}
+
+}
+
+func Test_Emission_Panic_For_Huge_Block(t *testing.T) {
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("Emission did not panic on huge blocks")
+		}
+	}()
+
+	bl_median_size := uint64(9)
+	bl_current_size := uint64(7 * 100 * 1024) // default median size is 300KB
+	already_generated_coins := uint64(3161034730701423760)
+	hard_fork_version := uint64(6)
+	fee := uint64(0)
+	expected := GetBlockReward(bl_median_size, bl_current_size, already_generated_coins, hard_fork_version, fee) // this should panic
+
+	if expected >= 0 {
+		t.Errorf("We should never land here %d\n", expected)
+	}
+
 }

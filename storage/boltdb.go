@@ -16,13 +16,13 @@
 
 // 64 bit arch will use this DB
 
-// +build amd64 boltdb
-
 package storage
 
 import "os"
 import "fmt"
 import "sync"
+import "strconv" // has intsize which give whether int is 64 bits or 32 bits
+import "runtime"
 import "path/filepath"
 import "encoding/binary"
 
@@ -36,6 +36,13 @@ type BoltStore struct {
 	DB         *bolt.DB
 	tx         *bolt.Tx
 	sync.Mutex // lock this struct
+	rw sync.RWMutex
+}
+
+// this object is returned
+type BoltTXWrapper struct {
+	bdb *BoltStore
+	tx  *bolt.Tx
 }
 
 var Bolt_backend *BoltStore = &BoltStore{} // global variable
@@ -43,7 +50,7 @@ var logger *log.Entry
 
 func (b *BoltStore) Init(params map[string]interface{}) (err error) {
 	logger = globals.Logger.WithFields(log.Fields{"com": "STORE"})
-	current_path := filepath.Join(os.TempDir(), "derod_database.db")
+	current_path := filepath.Join(globals.GetDataDirectory(), "derod_database.db")
 
 	if params["--simulator"] == true {
 		current_path = filepath.Join(os.TempDir(), "derod_simulation.db") // sp
@@ -53,9 +60,16 @@ func (b *BoltStore) Init(params map[string]interface{}) (err error) {
 	// Open the my.db data file in your current directory.
 	// It will be created if it doesn't exist.
 
-	b.DB, err = bolt.Open(current_path, 0600, nil)
+	options := &bolt.Options{InitialMmapSize :1 * 1024 * 1024 * 1024}
+	if runtime.GOOS != "windows" && strconv.IntSize == 64 {
+		options.InitialMmapSize *= 40 // default allocation 40 GB
+	}else{
+		options.InitialMmapSize = 0 // on windows, make it 0	
+	}
+
+	b.DB, err = bolt.Open(current_path, 0600, options)
 	if err != nil {
-		logger.Fatalf("Cannot open boltdb store err %s\n", err)
+		logger.Fatalf("Cannot open boltdb store err %s", err)
 	}
 
 	// if simulation, delete the file , so as it gets cleaned up automcatically
@@ -102,6 +116,34 @@ func (b *BoltStore) get_new_writable_tx() (tx *bolt.Tx) {
 }
 
 // Commit the pending transaction to  disk
+func (b *BoltStore) BeginTX(writable bool) (DBTX, error) {
+
+	//  logger.Warnf(" new writable tx, err")
+	txwrapper := &BoltTXWrapper{}
+	tx, err := b.DB.Begin(writable) // begin a new writable tx
+	if err != nil {
+		logger.Warnf("Error while creating new writable tx, err %s", err)
+		return nil, fmt.Errorf("Error while creating new writable tx, err %s", err)
+	}
+	txwrapper.tx = tx
+	txwrapper.bdb = b // parent DB reference
+
+	//logger.Warnf(" created new writable tx, err")
+	return txwrapper, nil
+}
+
+func (b *BoltTXWrapper) Commit() error {
+	err := b.tx.Commit()
+	if err != nil {
+		logger.Warnf("Error while committing tx, err %s", err)
+		return err
+	}
+	//logger.Warnf(" Commiting TX")
+
+	return nil
+}
+
+// Commit the pending transaction to  disk
 func (b *BoltStore) Commit() {
 	b.Lock()
 	if b.tx != nil {
@@ -115,6 +157,18 @@ func (b *BoltStore) Commit() {
 		logger.Warnf("Trying to Commit a NULL transaction, NOT possible")
 	}
 	b.Unlock()
+}
+
+// Roll back existing changes to  disk
+func (b *BoltTXWrapper) Rollback() {
+	// logger.Warnf(" Rollbacking  TX")
+	b.tx.Rollback()
+}
+
+// Roll back existing changes to  disk
+// TODO implement this
+func (b *BoltTXWrapper) Sync() {
+
 }
 
 // Roll back existing changes to  disk
@@ -139,29 +193,25 @@ func (b *BoltStore) Sync() {
 	b.Unlock()
 }
 
-func (b *BoltStore) StoreObject(universe_name []byte, galaxy_name []byte, solar_name []byte, key []byte, data []byte) (err error) {
+func (b *BoltStore) StoreObject(tx *bolt.Tx, universe_name []byte, galaxy_name []byte, solar_name []byte, key []byte, data []byte) (err error) {
 
-	b.Lock()
-	defer b.Unlock()
-
-	rlog.Tracef(10, "Storing object %s %s %x  data len %d\n", string(universe_name), string(galaxy_name), key, len(data))
+	rlog.Tracef(10, "Storing object %s %s %x  data len %d", string(universe_name), string(galaxy_name), key, len(data))
 	// open universe bucket
-	tx := b.get_new_writable_tx()
 
 	universe, err := tx.CreateBucketIfNotExists(universe_name)
 	if err != nil {
-		logger.Errorf("Error while creating universe bucket %s\n", err)
+		logger.Errorf("Error while creating universe bucket %s", err)
 		return err
 	}
 	galaxy, err := universe.CreateBucketIfNotExists(galaxy_name)
 	if err != nil {
-		logger.Errorf("Error while creating galaxy bucket %s err %s\n", string(galaxy_name), err)
+		logger.Errorf("Error while creating galaxy bucket %s err %s", string(galaxy_name), err)
 		return err
 	}
 
 	solar, err := galaxy.CreateBucketIfNotExists(solar_name)
 	if err != nil {
-		logger.Errorf("Error while creating solar bucket %s err %s\n", string(solar_name), err)
+		logger.Errorf("Error while creating solar bucket %s err %s", string(solar_name), err)
 		return err
 	}
 	// now lets update the object attribute
@@ -171,33 +221,65 @@ func (b *BoltStore) StoreObject(universe_name []byte, galaxy_name []byte, solar_
 
 }
 
-func (b *BoltStore) LoadObject(universe_name []byte, bucket_name []byte, solar_bucket []byte, key []byte) (data []byte, err error) {
-	rlog.Tracef(10, "Loading object %s %s %x\n", string(universe_name), string(bucket_name), key)
+func (b *BoltTXWrapper) StoreObject(universe_name []byte, galaxy_name []byte, solar_name []byte, key []byte, data []byte) (err error) {
+	return b.bdb.StoreObject(b.tx, universe_name, galaxy_name, solar_name, key, data)
+
+}
+
+// creates an empty bucket
+func (b *BoltStore) CreateBucket(tx *bolt.Tx, universe_name []byte, galaxy_name []byte, solar_name []byte) (err error) {
+
+	//rlog.Tracef(10, "Storing object %s %s %x  data len %d", string(universe_name), string(galaxy_name), key, len(data))
+
+	universe, err := tx.CreateBucketIfNotExists(universe_name)
+	if err != nil {
+		logger.Errorf("Error while creating universe bucket %s", err)
+		return err
+	}
+	galaxy, err := universe.CreateBucketIfNotExists(galaxy_name)
+	if err != nil {
+		logger.Errorf("Error while creating galaxy bucket %s err %s", string(galaxy_name), err)
+		return err
+	}
+
+	solar, err := galaxy.CreateBucketIfNotExists(solar_name)
+	if err != nil {
+		logger.Errorf("Error while creating solar bucket %s err %s", string(solar_name), err)
+		return err
+	}
+	_ = solar
+
+	return err
+
+}
+
+func (b *BoltTXWrapper) CreateBucket(universe_name []byte, galaxy_name []byte, solar_name []byte) (err error) {
+	return b.bdb.CreateBucket(b.tx, universe_name, galaxy_name, solar_name)
+}
+
+// a tx is shared by multiple goroutines, so they are protected by a mutex
+func (b *BoltStore) LoadObject(tx *bolt.Tx, universe_name []byte, bucket_name []byte, solar_bucket []byte, key []byte) (data []byte, err error) {
+	//rlog.Tracef(10, "Loading object %s %s %x", string(universe_name), string(bucket_name), key)
 
 	b.Lock()
 	defer b.Unlock()
+        //b.rw.RLock()
+        //defer b.rw.RUnlock()
 
-	var tx *bolt.Tx
-	if b.tx != nil {
-		tx = b.tx
-	} else {
-		tx, err = b.DB.Begin(false) // create read only
-		defer tx.Rollback()         // read-only tx must be rolled back always, never commit
-	}
 	// open universe bucket
 	{
 		universe := tx.Bucket(universe_name)
 		if universe == nil {
-			return data, fmt.Errorf("No Such Universe %x\n", universe_name)
+			return data, fmt.Errorf("No Such Universe %x", universe_name)
 		}
 		bucket := universe.Bucket(bucket_name)
 		if bucket == nil {
-			return data, fmt.Errorf("No Such Bucket %x\n", bucket_name)
+			return data, fmt.Errorf("No Such Bucket %x", bucket_name)
 		}
 
 		solar := bucket.Bucket(solar_bucket)
 		if solar == nil {
-			return data, fmt.Errorf("No Such Bucket %x\n", solar_bucket)
+			return data, fmt.Errorf("No Such Bucket %x", solar_bucket)
 		}
 
 		// now lets find the object
@@ -212,15 +294,71 @@ func (b *BoltStore) LoadObject(universe_name []byte, bucket_name []byte, solar_b
 
 }
 
+func (b *BoltTXWrapper) LoadObject(universe_name []byte, bucket_name []byte, solar_bucket []byte, key []byte) (data []byte, err error) {
+	return b.bdb.LoadObject(b.tx, universe_name, bucket_name, solar_bucket, key)
+}
+
+func (b *BoltStore) LoadObjects(tx *bolt.Tx, universe_name []byte, bucket_name []byte, solar_bucket []byte) (keys [][]byte, values [][]byte, err error) {
+	//rlog.Tracef(10, "Loading object %s %s %x", string(universe_name), string(bucket_name), key)
+
+	b.Lock()
+	defer b.Unlock()
+
+	// open universe bucket
+	{
+		universe := tx.Bucket(universe_name)
+		if universe == nil {
+			return keys, values, fmt.Errorf("No Such Universe %x", universe_name)
+		}
+		bucket := universe.Bucket(bucket_name)
+		if bucket == nil {
+			return keys, values, fmt.Errorf("No Such Bucket %x", bucket_name)
+		}
+
+		solar := bucket.Bucket(solar_bucket)
+		if solar == nil {
+			return keys, values, fmt.Errorf("No Such Bucket %x", solar_bucket)
+		}
+
+		// Create a cursor for iteration.
+		cursor := solar.Cursor()
+
+		// Iterate over items in sorted key order. This starts from the
+		// first key/value pair and updates the k/v variables to the
+		// next key/value on each iteration.
+		//
+		// The loop finishes at the end of the cursor when a nil key is returned.
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+
+			key := make([]byte, len(k), len(k))
+			value := make([]byte, len(v), len(v))
+			copy(key, k)   // job done
+			copy(value, v) // job done
+			keys = append(keys, key)
+			values = append(values, value)
+			// fmt.Printf("A %s is %s.", k, v)
+		}
+
+	}
+
+	return
+
+}
+
+func (b *BoltTXWrapper) LoadObjects(universe_name []byte, galaxy_name []byte, solar_name []byte) (keys [][]byte, values [][]byte, err error) {
+	return b.bdb.LoadObjects(b.tx, universe_name, galaxy_name, solar_name)
+
+}
+
 // this function stores a uint64
 // this will automcatically use the lock
-func (b *BoltStore) StoreUint64(universe_bucket []byte, galaxy_bucket []byte, solar_bucket []byte, key []byte, data uint64) error {
-	return b.StoreObject(universe_bucket, galaxy_bucket, solar_bucket, key, itob(data))
+func (b *BoltTXWrapper) StoreUint64(universe_bucket []byte, galaxy_bucket []byte, solar_bucket []byte, key []byte, data uint64) error {
+	return b.bdb.StoreObject(b.tx, universe_bucket, galaxy_bucket, solar_bucket, key, itob(data))
 
 }
 
 //  this function loads the data as 64 byte integer
-func (b *BoltStore) LoadUint64(universe_bucket []byte, galaxy_bucket []byte, solar_bucket []byte, key []byte) (uint64, error) {
+func (b *BoltTXWrapper) LoadUint64(universe_bucket []byte, galaxy_bucket []byte, solar_bucket []byte, key []byte) (uint64, error) {
 	object_data, err := b.LoadObject(universe_bucket, galaxy_bucket, solar_bucket, key)
 	if err != nil {
 		return 0, err

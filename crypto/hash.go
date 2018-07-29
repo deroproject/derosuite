@@ -31,6 +31,15 @@ func (h Hash) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("%x", h[:])), nil
 }
 
+func (h *Hash) UnmarshalText(data []byte) (err error) {
+	byteSlice, _ := hex.DecodeString(string(data))
+	if len(byteSlice) != 32 {
+		return fmt.Errorf("Incorrect hash size")
+	}
+	copy(h[:], byteSlice)
+	return
+}
+
 // stringifier
 func (h Hash) String() string {
 	return fmt.Sprintf("%x", h[:])

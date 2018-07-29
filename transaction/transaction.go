@@ -174,8 +174,9 @@ type Transaction struct {
 func (tx *Transaction) GetHash() (result crypto.Hash) {
 	switch tx.Version {
 
-	case 1:
-		result = crypto.Hash(crypto.Keccak256(tx.SerializeHeader()))
+	/*case 1:
+	result = crypto.Hash(crypto.Keccak256(tx.SerializeHeader()))
+	*/
 
 	case 2:
 		// version 2 requires first computing 3 separate hashes
@@ -186,7 +187,7 @@ func (tx *Transaction) GetHash() (result crypto.Hash) {
 		rctPrunableHash := tx.RctSignature.PrunableHash()
 		result = crypto.Hash(crypto.Keccak256(prefixHash[:], rctBaseHash[:], rctPrunableHash[:]))
 	default:
-		panic("Transaction version cannot be zero")
+		panic("Transaction version unknown")
 
 	}
 
@@ -224,6 +225,9 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 		return fmt.Errorf("Invalid Version in Transaction\n")
 	}
 
+	if tx.Version != 2 {
+		return fmt.Errorf("Transaction version not equal to 2 \n")
+	}
 	rlog.Tracef(10, "transaction version %d\n", tx.Version)
 
 	buf = buf[done:]
@@ -245,8 +249,6 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 
 	}
 
-	coinbase_done := false
-
 	rlog.Tracef(10, "vin length %d\n", vin_length)
 
 	for i := uint64(0); i < vin_length; i++ {
@@ -261,10 +263,6 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 		case TXIN_GEN:
 			rlog.Tracef(10, "Coinbase transaction\n")
 
-			if coinbase_done {
-				return fmt.Errorf("Transaction cannot have multiple coin base transaction\n")
-
-			}
 			var current_vin Txin_gen
 			current_vin.Height, done = binary.Uvarint(buf)
 			if done <= 0 {
@@ -273,12 +271,11 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 			buf = buf[done:]
 			tx.Vin = append(tx.Vin, current_vin)
 
-			coinbase_done = true // we can no longer have coin base
-
-		case TXIN_TO_SCRIPT:
+		/*case TXIN_TO_SCRIPT:
 			panic("TXIN_TO_SCRIPT not implemented")
 		case TXIN_TO_SCRIPTHASH:
 			panic("TXIN_TO_SCRIPTHASH not implemented")
+		*/
 		case TXIN_TO_KEY:
 			var current_vin Txin_to_key
 
@@ -289,6 +286,10 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 			}
 			buf = buf[done:]
 
+			if current_vin.Amount != 0 {
+				return fmt.Errorf("V2 Transactions have all input amount as zero\n")
+			}
+
 			//fmt.Printf("Remaining data %x\n", buf[:20]);
 
 			mixin_count, done := binary.Uvarint(buf)
@@ -298,8 +299,8 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 			buf = buf[done:]
 
 			// safety check mixin cannot be larger than say x
-
-			if mixin_count > 400 {
+			// do we need a safety check
+			if mixin_count > 4000 {
 				return fmt.Errorf("Mixin cannot be larger than 400\n")
 			}
 
@@ -334,7 +335,7 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 			// panic("TXIN_TO_KEY not implemented")
 
 		default:
-			panic("Invalid VIN type in Transaction")
+			return fmt.Errorf("Invalid VIN type in Transaction")
 
 		}
 
@@ -363,6 +364,10 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 		}
 		buf = buf[done:]
 
+		/*if amount != 0 {
+		    return fmt.Errorf("V2 Transactions have all output amount as zero\n")
+		}*/
+
 		// decode vout type
 
 		vout_type := buf[0]
@@ -370,11 +375,12 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 
 		rlog.Tracef(10, "Vout Amount length %d  vout type %d   \n", amount, vout_type)
 
-		if tx.Version == 1 && amount == 0 { // version 2 can have any amount
-			return fmt.Errorf("Amount cannot be zero in Transaction\n")
-		}
+		/*if tx.Version == 2 && amount != 0 { // version 2 must have amount 0
+			return fmt.Errorf("Amount must be zero in Transaction\n")
+		}*/
+
 		switch vout_type {
-		case TXOUT_TO_SCRIPT:
+		/*case TXOUT_TO_SCRIPT:
 			//fmt.Printf("out to script\n")
 			panic("TXOUT_TO_SCRIPT not implemented")
 		case TXOUT_TO_SCRIPTHASH:
@@ -386,6 +392,7 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 			buf = buf[32:]
 
 			//panic("TXOUT_TO_SCRIPTHASH not implemented")
+		*/
 		case TXOUT_TO_KEY:
 			//fmt.Printf("out to key\n")
 
@@ -427,14 +434,16 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 	buf = buf[extra_length:] // consume more bytes
 
 	switch tx.Version {
-	case 1: // old style signatures, load value
-		for i := uint64(0); i < Key_offset_count; i++ {
-			var s Signature_v1
-			copy(s.R[:], buf[:32])
-			copy(s.C[:], buf[32:64])
-			tx.Signature = append(tx.Signature, s)
-			buf = buf[SIGNATURE_V1_LENGTH:]
-		}
+	/*case 1: // old style signatures, load value
+	for i := uint64(0); i < Key_offset_count; i++ {
+		var s Signature_v1
+		copy(s.R[:], buf[:32])
+		copy(s.C[:], buf[32:64])
+		tx.Signature = append(tx.Signature, s)
+		buf = buf[SIGNATURE_V1_LENGTH:]
+	}
+	*/
+
 	case 2:
 		bufreader := bytes.NewReader(buf)
 
@@ -444,6 +453,31 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 		if err != nil {
 			return err
 		}
+
+		// we can expand and set some bulletproofs for later on verification,
+		/*
+					if tx.RctSignature.Get_Sig_Type() == ringct.RCTTypeSimpleBulletproof || tx.RctSignature.Get_Sig_Type() == ringct.RCTTypeFullBulletproof {
+
+			                    if len(tx.RctSignature.ECdhInfo) != len(tx.Vout) ||len(tx.Vout) != len(tx.RctSignature.BulletSigs) {
+			                        return fmt.Errorf("Invalid Bulletproof signature in Transaction\n")
+			                    }
+			                    for  i := range tx.RctSignature.ECdhInfo {
+			                        tx.RctSignature.BulletSigs[i].V = []crypto.Key{ crypto.Key(tx.RctSignature.OutPk[i].Mask) }
+
+			                        fmt.Printf("verifying BP now  \t ")
+
+			                        if tx.RctSignature.BulletSigs[i].BULLETPROOF_Verify() {
+			                         fmt.Printf("Bulletproof verification done successfully")
+			                        }else{
+			                            fmt.Printf("Bulletproof verification failed %+v \n", tx.RctSignature.BulletSigs[i])
+			                        }
+			                    }
+
+
+			                }*/
+
+	default:
+		return fmt.Errorf("Version 1 is NOT supported\n")
 	}
 
 	/* we must deserialize signature some where else
@@ -547,11 +581,6 @@ func (tx *Transaction) DeserializeHeader(buf []byte) (err error) {
 }
 
 // calculated prefi has signature
-func (tx *Transaction) PrefixHash() {
-
-}
-
-// calculated prefi has signature
 func (tx *Transaction) Clear() {
 	// clean the transaction everything
 	tx.Version = 0
@@ -574,9 +603,9 @@ func (tx *Transaction) SerializeHeader() []byte {
 	n = binary.PutUvarint(buf, tx.Unlock_Time)
 	serialised_header.Write(buf[:n])
 
-	/*if len(tx.Vin) < 1 {
+	if len(tx.Vin) < 1 {
 		panic("No vins")
-	}*/
+	}
 
 	n = binary.PutUvarint(buf, uint64(len(tx.Vin)))
 	serialised_header.Write(buf[:n])

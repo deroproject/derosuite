@@ -18,7 +18,7 @@ package rpcserver
 
 // get block template handler not implemented
 
-//import "fmt"
+import "fmt"
 import "context"
 
 //import	"log"
@@ -28,45 +28,38 @@ import "github.com/intel-go/fastjson"
 import "github.com/osamingo/jsonrpc"
 
 //import "github.com/deroproject/derosuite/crypto"
-import "github.com/deroproject/derosuite/blockchain"
+import "github.com/deroproject/derosuite/structures"
 
-type (
-	GetBlockHeaderByHeight_Handler struct{}
-	GetBlockHeaderByHeight_Params  struct {
-		Height uint64 `json:"height"`
-	} // no params
-	GetBlockHeaderByHeight_Result struct {
-		Block_Header blockchain.BlockHeader_Print `json:"block_header"`
-		Status       string                       `json:"status"`
-	}
-)
+type GetBlockHeaderByHeight_Handler struct{}
 
 func (h GetBlockHeaderByHeight_Handler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-	var p GetBlockHeaderByHeight_Params
+	var p structures.GetBlockHeaderByHeight_Params
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
 
-	if p.Height >= chain.Get_Height() {
-		return nil, jsonrpc.ErrInvalidParams()
+	if int64(p.Height) > chain.Load_TOPO_HEIGHT(nil) {
+		return nil, &jsonrpc.Error{Code: -2, Message: fmt.Sprintf("Too big height: %d, current blockchain height = %d", p.Height, chain.Get_Height())}
 	}
 
-	hash, err := chain.Load_BL_ID_at_Height(p.Height)
+	//return nil, &jsonrpc.Error{Code: -2, Message: fmt.Sprintf("NOT SUPPORTED height: %d, current blockchain height = %d", p.Height, chain.Get_Height())}
+	hash, err := chain.Load_Block_Topological_order_at_index(nil, int64(p.Height))
 	if err != nil { // if err return err
-		logger.Warnf("User requested %d height block, chain height %d but err occured %s", p.Height, chain.Get_Height(), err)
+		logger.Warnf("User requested %d height block, chain topo height %d but err occured %s", p.Height, chain.Get_Height(), err)
 
 		return nil, jsonrpc.ErrInvalidParams()
 	}
 
 	block_header, err := chain.GetBlockHeader(hash)
 	if err != nil { // if err return err
-		logger.Warnf("User requested %d height block, chain height %d but err occured %s", p.Height, chain.Get_Height(), err)
+		logger.Warnf("User requested %d height block, chain  topo height %d but err occured %s", p.Height, chain.Get_Height(), err)
 
 		return nil, jsonrpc.ErrInvalidParams()
 	}
 
-	return GetBlockHeaderByHeight_Result{ // return success
+	return structures.GetBlockHeaderByHeight_Result{ // return success
 		Block_Header: block_header,
 		Status:       "OK",
 	}, nil
+
 }

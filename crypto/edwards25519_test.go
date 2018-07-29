@@ -16,9 +16,10 @@
 
 package crypto
 
-import (
-	"testing"
-)
+import "os"
+import "runtime/pprof"
+import "crypto/rand"
+import "testing"
 
 func TestScMulSub(t *testing.T) {
 	tests := []struct {
@@ -104,9 +105,16 @@ func TestScalarMult(t *testing.T) {
 		result := new(ProjectiveGroupElement)
 		GeScalarMult(result, &scalarBytes, point)
 		var got Key
+		point.ToBytes(&got)
+
+		if got != pointBytes {
+			t.Fatalf("%s: want %s, got %s point testing failed", test.name, pointBytes, got)
+		}
+
 		result.ToBytes(&got)
+
 		if want != got {
-			t.Errorf("%s: want %x, got %x", test.name, want, got)
+			t.Fatalf("%s: want %s, got %s", test.name, want, got)
 		}
 	}
 }
@@ -1628,3 +1636,474 @@ func TestScValid(t *testing.T) {
 		}
 	}
 }
+
+func TestAddKeys3_3(t *testing.T) {
+
+	for i := 0; i < 1000; i++ {
+		s1 := *(RandomScalar())
+		s2 := *(RandomScalar()) //*(identity()) // *(RandomScalar())
+
+		p1 := s1.PublicKey()
+		p2 := s2.PublicKey()
+
+		first_part := ScalarMultKey(p1, &s1)
+		second_part := ScalarMultKey(p2, &s2)
+
+		// do it traditional way
+		var sum_result Key
+		AddKeys(&sum_result, first_part, second_part)
+
+		// lets do it optimal way, pre compute
+		var p1_extended, p2_extended ExtendedGroupElement
+		var p1_precomputed, p2_precomputed [8]CachedGroupElement
+
+		p1_extended.FromBytes(p1)
+		p2_extended.FromBytes(p2)
+
+		GePrecompute(&p1_precomputed, &p1_extended)
+		GePrecompute(&p2_precomputed, &p2_extended)
+
+		var fast_result Key
+		AddKeys3_3(&fast_result, &s1, &p1_precomputed, &s2, &p2_precomputed)
+
+		if sum_result != fast_result {
+			t.Fatalf("AddKeys3_3 Failed Expected %s Actual %s", sum_result, fast_result)
+		}
+	}
+
+}
+
+func TestElements(t *testing.T) {
+
+	for i := 0; i < 100; i++ {
+		p1 := *(RandomScalar()).PublicKey()
+		p2 := *(RandomScalar()).PublicKey()
+
+		var exp1, exp2 ExtendedGroupElement
+		var cached CachedGroupElement
+		var precomputed PreComputedGroupElement
+		var actual, naive, fast Key
+		var tmpe ExtendedGroupElement
+
+		exp1.FromBytes(&p1)
+		exp2.FromBytes(&p2)
+
+		//original
+		AddKeys(&actual, &p1, &p2)
+
+		// naive
+		var r CompletedGroupElement
+		exp2.ToCached(&cached)
+		geAdd(&r, &exp1, &cached)
+		r.ToExtended(&tmpe)
+		tmpe.ToBytes(&naive)
+
+		if actual != naive {
+			t.Fatalf("Naive addition failed")
+		}
+
+		exp2.ToPreComputed(&precomputed)
+		geMixedAdd(&r, &exp1, &precomputed)
+		r.ToExtended(&tmpe)
+		tmpe.ToBytes(&fast)
+
+		if actual != fast {
+			t.Fatalf("Fast addition failed")
+		}
+	}
+}
+
+func TestPrecompute(t *testing.T) {
+
+	var table PRECOMPUTE_TABLE
+
+	s1 := *(RandomScalar())
+	//p1 := &GBASE //identity() // s1.PublicKey()
+	p1 := s1.PublicKey()
+
+	GenPrecompute(&table, *p1)
+
+	//s1[1]=29
+
+	expected := ScalarMultKey(p1, &s1)
+
+	var actual Key
+
+	var result_extended ExtendedGroupElement
+	ScalarMultPrecompute(&result_extended, &s1, &table)
+
+	result_extended.ToBytes(&actual)
+
+	//t.Logf("Super compute Expected %s actual %s", expected,actual)
+
+	if actual != *expected {
+		t.Logf("Super compute failed Expected %s actual %s", expected, actual)
+	}
+
+}
+
+func TestSuperPrecompute(t *testing.T) {
+	var table PRECOMPUTE_TABLE
+	var stable SUPER_PRECOMPUTE_TABLE
+
+	s1 := *(RandomScalar())
+	p1 := s1.PublicKey()
+
+	GenPrecompute(&table, *p1)
+	GenSuperPrecompute(&stable, &table)
+
+	//s1[1]=29
+
+	expected := ScalarMultKey(p1, &s1)
+
+	var actual Key
+
+	var result_extended ExtendedGroupElement
+	ScalarMultSuperPrecompute(&result_extended, &s1, &stable)
+
+	result_extended.ToBytes(&actual)
+
+	//t.Logf("Super compute Expected %s actual %s", expected,actual)
+
+	if actual != *expected {
+		t.Logf("Super compute failed Expected %s actual %s", expected, actual)
+	}
+
+}
+
+func Test_DoubleScalarDoubleBaseMulPrecomputed(t *testing.T) {
+
+	var ex ExtendedGroupElement
+
+	s1 := *(RandomScalar())
+	s2 := *(RandomScalar()) //*(RandomScalar()) //*(identity()) // *(RandomScalar())
+
+	p1 := s1.PublicKey()
+	p2 := s2.PublicKey()
+
+	first_part := ScalarMultKey(p1, &s1)
+	second_part := ScalarMultKey(p2, &s2)
+
+	// do it traditional way
+	var sum_result Key
+	var actual Key
+	AddKeys(&sum_result, first_part, second_part)
+
+	// lets do it using precomputed tables
+	var table PRECOMPUTE_TABLE
+
+	GenDoublePrecompute(&table, *p1, *p2)
+
+	/*
+	   multprecompscalar(&ex,&s1)
+
+
+	   ex.ToBytes(&actual)
+
+	   if *first_part != actual{
+
+	   	//t.Logf("%+v table ", table)
+	   	t.Fatalf("simple scalar precompyed failed  expected %s  actual %s", sum_result,actual)
+	   }
+	*/
+
+	DoubleScalarDoubleBaseMulPrecomputed(&ex, &s1, &s2, &table)
+	ex.ToBytes(&actual)
+
+	//  t.Logf("first part %s", first_part)
+	//  t.Logf("second_part part %s", second_part)
+	//  t.Logf("actual %s expected %s", actual,sum_result)
+
+	if sum_result != actual {
+
+		//t.Logf("%+v table ", table)
+		t.Fatalf("Double scalar precompyed failed %s %s", sum_result, actual)
+	}
+
+}
+
+func BenchmarkDoublePrecompute(b *testing.B) {
+	var table PRECOMPUTE_TABLE
+
+	s1 := *(identity()) //  *(RandomScalar())
+	s2 := *(identity()) //*(RandomScalar()) //*(identity()) // *(RandomScalar())
+
+	p1 := identity() //s1.PublicKey()
+	p2 := s2.PublicKey()
+
+	GenDoublePrecompute(&table, *p1, *p2)
+
+	cpufile, err := os.Create("/tmp/dprecompute_cpuprofile.prof")
+	if err != nil {
+
+	}
+	if err := pprof.StartCPUProfile(cpufile); err != nil {
+	}
+	defer pprof.StopCPUProfile()
+
+	var result_extended ExtendedGroupElement
+	result_extended.Zero() // make it identity
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		DoubleScalarDoubleBaseMulPrecomputed(&result_extended, &s1, &s2, &table)
+
+	}
+}
+
+// test 64 bit version used for bulletproofs
+func Test_DoubleScalarDoubleBaseMulPrecomputed64(t *testing.T) {
+
+	var s1, s2 [64]Key
+	var p1, p2 [64]Key
+
+	for i := 0; i < 64; i++ {
+		s1[i] = *(RandomScalar())
+		s2[i] = *(RandomScalar()) //*(RandomScalar()) //*(identity()) // *(RandomScalar())
+
+		p1[i] = *(s1[i].PublicKey())
+		p2[i] = *(s2[i].PublicKey())
+
+	}
+
+	// compute actual result using naive method
+	naive_result := Identity
+	for i := 0; i < 64; i++ {
+
+		first_part := ScalarMultKey(&p1[i], &s1[i])
+		second_part := ScalarMultKey(&p2[i], &s2[i])
+
+		// do it traditional way
+		var sum_result Key
+		AddKeys(&sum_result, first_part, second_part)
+		AddKeys(&naive_result, &naive_result, &sum_result)
+
+	}
+
+	// lets do it using precomputed tables
+	var table [64]PRECOMPUTE_TABLE
+	for i := 0; i < 64; i++ {
+		GenDoublePrecompute(&table[i], p1[i], p2[i])
+	}
+
+	var ex ExtendedGroupElement
+	var actual Key
+	DoubleScalarDoubleBaseMulPrecomputed64(&ex, s1[:], s2[:], table[:])
+
+	ex.ToBytes(&actual)
+
+	//  t.Logf("first part %s", first_part)
+	//  t.Logf("second_part part %s", second_part)
+	//  t.Logf("actual %s expected %s", actual,sum_result)
+
+	if naive_result != actual {
+
+		//t.Logf("%+v table ", table)
+		t.Fatalf("Double scalar precomputed 64 failed  expected %s actual %s", naive_result, actual)
+	}
+
+}
+
+// test 64 bit version used for bulletproofs
+func Benchmark_DoubleScalarDoubleBaseMulPrecomputed64(b *testing.B) {
+
+	var s1, s2 [64]Key
+	var p1, p2 [64]Key
+
+	for i := 0; i < 64; i++ {
+		s1[i] = *(RandomScalar())
+		s2[i] = *(RandomScalar()) //*(RandomScalar()) //*(identity()) // *(RandomScalar())
+
+		p1[i] = *(s1[i].PublicKey())
+		p2[i] = *(s2[i].PublicKey())
+
+	}
+
+	// compute actual result using naive method
+	naive_result := Identity
+	for i := 0; i < 64; i++ {
+
+		first_part := ScalarMultKey(&p1[i], &s1[i])
+		second_part := ScalarMultKey(&p2[i], &s2[i])
+
+		// do it traditional way
+		var sum_result Key
+		AddKeys(&sum_result, first_part, second_part)
+		AddKeys(&naive_result, &naive_result, &sum_result)
+
+	}
+
+	// lets do it using precomputed tables
+	var table [64]PRECOMPUTE_TABLE
+	for i := 0; i < 64; i++ {
+		GenDoublePrecompute(&table[i], p1[i], p2[i])
+	}
+
+	var ex ExtendedGroupElement
+	var actual Key
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		DoubleScalarDoubleBaseMulPrecomputed64(&ex, s1[:], s2[:], table[:])
+
+		ex.ToBytes(&actual)
+
+		//  t.Logf("first part %s", first_part)
+		//  t.Logf("second_part part %s", second_part)
+		//  t.Logf("actual %s expected %s", actual,sum_result)
+
+		if naive_result != actual {
+
+			//t.Logf("%+v table ", table)
+			b.Fatalf("Double scalar precomputed 64 failed  expected %s actual %s", naive_result, actual)
+		}
+	}
+
+}
+
+func BenchmarkPrecompute(b *testing.B) {
+	var table PRECOMPUTE_TABLE
+
+	GenPrecompute(&table, GBASE)
+
+	s1 := *(RandomScalar())
+	//s1[1]=29
+
+	/*
+	   	cpufile,err := os.Create("/tmp/precompute_cpuprofile.prof")
+	   			if err != nil{
+
+	   			}
+	   			if err := pprof.StartCPUProfile(cpufile); err != nil {
+	               }
+	           	defer pprof.StopCPUProfile()
+
+	*/
+
+	var result_extended ExtendedGroupElement
+	result_extended.Zero() // make it identity
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		result_extended.Zero() // make it identity
+
+		ScalarMultPrecompute(&result_extended, &s1, &table)
+
+	}
+}
+
+func BenchmarkSuperPrecompute(b *testing.B) {
+	var table PRECOMPUTE_TABLE
+	var stable SUPER_PRECOMPUTE_TABLE
+
+	GenPrecompute(&table, GBASE)
+	GenSuperPrecompute(&stable, &table)
+
+	s1 := *(RandomScalar())
+	//s1[1]=29
+
+	/*
+	   	cpufile,err := os.Create("/tmp/superprecompute_cpuprofile.prof")
+	   			if err != nil{
+
+	   			}
+	   			if err := pprof.StartCPUProfile(cpufile); err != nil {
+	               }
+	           	defer pprof.StopCPUProfile()
+
+	*/
+
+	var result_extended ExtendedGroupElement
+	result_extended.Zero() // make it identity
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		result_extended.Zero() // make it identity
+
+		ScalarMultSuperPrecompute(&result_extended, &s1, &stable)
+
+	}
+}
+
+func BenchmarkGeScalarMultBase(b *testing.B) {
+	var s Key
+	rand.Reader.Read(s[:])
+	var P ExtendedGroupElement
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		GeScalarMultBase(&P, &s)
+	}
+}
+
+func BenchmarkGeScalarMult(b *testing.B) {
+	var s Key
+	rand.Reader.Read(s[:])
+
+	var P ExtendedGroupElement
+	var E ProjectiveGroupElement
+	s[31] &= 127
+	GeScalarMultBase(&P, &s)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		GeScalarMult(&E, &s, &P)
+	}
+}
+
+func BenchmarkGeDoubleScalarMultVartime(b *testing.B) {
+	var s Key
+	rand.Reader.Read(s[:])
+
+	var P, Pout ExtendedGroupElement
+	s[31] &= 127
+	GeScalarMultBase(&P, &s)
+	_ = Pout
+
+	var out ProjectiveGroupElement
+
+	b.ResetTimer()
+	var x Key
+	for i := 0; i < b.N; i++ {
+		GeDoubleScalarMultVartime(&out, &s, &P, &x)
+		//out.ToExtended(&Pout)
+	}
+}
+
+/*
+func BenchmarkGeAdd(b *testing.B) {
+	var s Key
+	rand.Reader.Read(s[:])
+
+	var R, P ExtendedGroupElement
+	s[31] &= 127
+	GeScalarMultBase(&P, &s)
+	R = P
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		GeAdd(&R, &R, &P)
+	}
+}
+*/
+
+/*
+func BenchmarkGeDouble(b *testing.B) {
+	var s [32]byte
+	rand.Reader.Read(s[:])
+
+	var R, P ExtendedGroupElement
+	s[31] &= 127
+	GeScalarMultBase(&P, &s)
+	R = P
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		GeDouble(&R, &P)
+	}
+}
+*/

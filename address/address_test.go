@@ -25,16 +25,17 @@ import "github.com/deroproject/derosuite/config"
 
 func TestAddressError(t *testing.T) {
 	_, err := NewAddress("")
-	/*want := "Address is the wrong length"
-	if err != want {
-		t.Errorf("want: %s, got: %s", want, err)
-	}
-	*/
-	_, err = NewAddress("46w3n5EGhBeYmKvQRsd8UK9GhvcbYWQDobJape3NLMMFEjFZnJ3CnRmeKspubQGiP8iMTwFEX2QiBsjUkjKT4SSPd3fK1")
-	want := fmt.Errorf("Checksum does not validate")
+	want := fmt.Errorf("Address is not complete")
 	if err.Error() != want.Error() {
-		t.Errorf("want: %s, got: %s", want, err)
+		t.Fatalf("want: %s, got: %s", want, err)
 	}
+
+	_, err = NewAddress("dERoNzsi5WW1ABhQ1UGLwoLqBU6sbzvyuS4cCi4PGzW7QRM5TH4MUf3QvZUBNJCYSDPw6K495eroGe24cf75uDdD2QwWy9pchN")
+	want = fmt.Errorf("Checksum failed")
+	if err.Error() != want.Error() {
+		t.Fatalf("want: %s, got: %s", want, err)
+	}
+
 }
 
 func TestAddress(t *testing.T) {
@@ -92,6 +93,13 @@ func TestAddress(t *testing.T) {
 			ViewingKeyHex:  "0ea428a9608fc9dc06acceea608ac97cc9119647b943941a381306548ee43455",
 			Address:        "dETosYceeTxRZQBk5hQzN51JepzZn5H24JqR96q7mY7ZFo6JhJKPNSKR3vs9ES1ibyQDQgeRheDP6CJbb7AKJY2H9eacz2RtPy",
 		},
+		{
+			name:           "DERO mainnet requires padding in second block",
+			Network:        config.Mainnet.Public_Address_Prefix,
+			SpendingKeyHex: "10a80329a700f25c9892a696de768f5bdc73cafe6095d647e5707c04f48c0481",
+			ViewingKeyHex:  "b0fa8ca43a8f07681274ddd8fa891aea4222aa8027dd516bc144317a042547c4",
+			Address:        "dERoNzsi5WW1ABhQ1UGLwoLqBU6sbzvyuS4cCi4PGzW7QRM5TH4MUf3QvZUBNJCYSDPw6K495eroGe24cf75uDdD2QwWy9pchM",
+		},
 	}
 	var base58 string
 	var spendingKey, viewingKey []byte
@@ -99,16 +107,89 @@ func TestAddress(t *testing.T) {
 		spendingKey, _ = hex.DecodeString(test.SpendingKeyHex)
 		viewingKey, _ = hex.DecodeString(test.ViewingKeyHex)
 
-		_ = spendingKey
-		_ = viewingKey
-
 		address, err := NewAddress(test.Address)
-
 		if err != nil {
-			t.Errorf("%s: Failed while parsing address %s", test.name, err)
+			t.Fatalf("%s: Failed while parsing address %s", test.name, err)
 			continue
 		}
-		_ = address
+
+		if address.Network != test.Network {
+			t.Fatalf("%s: want: %d, got: %d", test.name, test.Network, address.Network)
+			continue
+		}
+
+		if bytes.Compare(address.SpendKey[:], spendingKey) != 0 {
+			t.Fatalf("%s: want: %x, got: %s", test.name, spendingKey, address.SpendKey)
+			continue
+		}
+		if bytes.Compare(address.ViewKey[:], viewingKey) != 0 {
+			t.Fatalf("%s: want: %x, got: %s", test.name, viewingKey, address.ViewKey)
+			continue
+		}
+
+		base58 = address.Base58()
+		if base58 != test.Address {
+			t.Fatalf("%s: want: %s, got: %s", test.name, test.Address, base58)
+			continue
+		}
+
+	}
+}
+
+// more explaination here https://monero.stackexchange.com/questions/1910/how-do-payment-ids-work
+// test case created from here https://xmr.llcoins.net/addresstests.html
+func TestIntegratedAddress(t *testing.T) {
+
+	const Monero_MainNetwork = 18
+	const Monero_MainNetwork_Integrated = 19
+	const Monero_TestNetwork = 53
+
+	tests := []struct {
+		name           string
+		Network        uint64
+		NetworkI       uint64
+		SpendingKeyHex string
+		ViewingKeyHex  string
+		PaymentID      string
+		Address        string
+		AddressI       string
+	}{
+		{
+			name:           "generic",
+			Network:        Monero_MainNetwork,
+			NetworkI:       Monero_MainNetwork_Integrated,
+			SpendingKeyHex: "80d3eca27896f549abc41dd941d08a4c82cff165a7f8bc4c3c0841cffd11c095",
+			ViewingKeyHex:  "7849297236cd7c0d6c69a3c8c179c038d3c1c434735741bb3c8995c3c9d6f2ac",
+			PaymentID:      "90470a40196034b5",
+			Address:        "46WGHoGHRT2DKhdr4BxzhXDoFe5NBjNm1Dka5144aXZHS13cAoUQWRq3FE2gcT3LJjAWJ6fGWq8t8YKRqwwit8vmLT6tcxK",
+
+			AddressI: "4GCwJc5n2iYDKhdr4BxzhXDoFe5NBjNm1Dka5144aXZHS13cAoUQWRq3FE2gcT3LJjAWJ6fGWq8t8YKRqwwit8vmVs5oxyLeWQsMWmcgkC",
+		},
+
+		{
+			name:           "generic",
+			Network:        config.Mainnet.Public_Address_Prefix,
+			NetworkI:       config.Mainnet.Public_Address_Prefix_Integrated,
+			SpendingKeyHex: "bd7393b76af23611e6e0eb1e4974bcb5688fceea6ad8a1b08435a4e68fcb7b8c",
+			ViewingKeyHex:  "c828aa405d78c3a0b0a7263d2cb82811d4c6ee3374ada5cc753d8196a271b3d2",
+			PaymentID:      "0cbd6e050cf3b73c",
+			Address:        "dERoiVavtPjhWkdEPp17RJLXVoHkr2ucMdEbgGgpskhLb33732LBifWMCZhPga3EcjXoYqfM9jRv3W3bnWUSpdmK5Jur1PhN6P",
+
+			AddressI: "dERijfr9y7XhWkdEPp17RJLXVoHkr2ucMdEbgGgpskhLb33732LBifWMCZhPga3EcjXoYqfM9jRv3W3bnWUSpdmKL24FBjG6ctTAEg1jrhDHh",
+		},
+	}
+
+	var base58 string
+	var spendingKey, viewingKey []byte
+	for _, test := range tests {
+		spendingKey, _ = hex.DecodeString(test.SpendingKeyHex)
+		viewingKey, _ = hex.DecodeString(test.ViewingKeyHex)
+
+		address, err := NewAddress(test.Address)
+		if err != nil {
+			t.Fatalf("%s: Failed while parsing address %s", test.name, err)
+			continue
+		}
 
 		if address.Network != test.Network {
 			t.Errorf("%s: want: %d, got: %d", test.name, test.Network, address.Network)
@@ -116,19 +197,54 @@ func TestAddress(t *testing.T) {
 		}
 
 		if bytes.Compare(address.SpendKey[:], spendingKey) != 0 {
-			t.Errorf("%s: want: %x, got: %x", test.name, spendingKey, address.SpendKey)
+			t.Fatalf("%s: want: %x, got: %s", test.name, spendingKey, address.SpendKey)
 			continue
 		}
 		if bytes.Compare(address.ViewKey[:], viewingKey) != 0 {
-			t.Errorf("%s: want: %x, got: %x", test.name, viewingKey, address.ViewKey)
+			t.Fatalf("%s: want: %x, got: %s", test.name, viewingKey, address.ViewKey)
 			continue
 		}
 
 		base58 = address.Base58()
 		if base58 != test.Address {
-			t.Errorf("%s: want: %s, got: %s", test.name, test.Address, base58)
+			t.Fatalf("%s: want: %s, got: %s", test.name, test.Address, base58)
 			continue
 		}
 
+		address, err = NewAddress(test.AddressI)
+		if err != nil {
+			t.Fatalf("%s: Failed while parsing address %s", test.name, err)
+			continue
+		}
+
+		base58 = address.Base58()
+		if base58 != test.AddressI {
+			t.Fatalf("%s: want: %s, got: %s", test.name, test.AddressI, base58)
+			continue
+		}
+
+		if fmt.Sprintf("%x", address.PaymentID) != test.PaymentID {
+			t.Fatalf("%s: PaymentID want: %s, got: %s", test.name, test.PaymentID, address.PaymentID)
+		}
+
 	}
+
+}
+
+func Test_Bruteforce_IntegratedAddress(t *testing.T) {
+    var AddressI string = "dERijfr9y7XhWkdEPp17RJLXVoHkr2ucMdEbgGgpskhLb33732LBifWMCZhPga3EcjXoYqfM9jRv3W3bnWUSpdmKL24FBjG6ctTAEg1jrhDHh"
+    
+    var PaymentID string = "0cbd6e050cf3b73c"
+    
+    
+    for i := 0; i < 100000;i++  {
+    address, err := NewAddress(AddressI)
+		if err != nil {
+			t.Fatalf("%s: Failed while parsing address %s", AddressI, err)
+			continue
+		}
+		if fmt.Sprintf("%x",address.PaymentID) != PaymentID{
+                    t.Fatalf("Payment ID failed at loop %d", i)
+                }
+    }
 }

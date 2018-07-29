@@ -70,7 +70,7 @@ func Test_Input_Maturity(t *testing.T) {
 
 		// normal tx output matures in 10 blocks
 		{
-			name:                 "normal test 9", // reward should mature at block 11
+			name:                 "normal test 9", // reward should mature at block 10
 			current_chain_height: 9,
 			input_block_height:   0,
 			locked_to_height:     0,
@@ -83,7 +83,7 @@ func Test_Input_Maturity(t *testing.T) {
 			input_block_height:   0,
 			locked_to_height:     0,
 			sigtype:              1,
-			expected:             true,
+			expected:             false,
 		},
 		{
 			name:                 "normal test 11", //  reward should mature at block 11

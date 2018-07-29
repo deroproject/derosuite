@@ -24,20 +24,13 @@ import "context"
 import "github.com/intel-go/fastjson"
 import "github.com/osamingo/jsonrpc"
 
-type (
-	GetBlockCount_Handler struct{}
-	GetBlockCount_Params  struct {
-		// NO params
-	}
-	GetBlockCount_Result struct {
-		Count  uint64 `json:"count"`
-		Status string `json:"status"`
-	}
-)
+import "github.com/deroproject/derosuite/structures"
+
+type GetBlockCount_Handler struct{}
 
 func (h GetBlockCount_Handler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-	return GetBlockCount_Result{
-		Count:  chain.Get_Height() - 1,
+	return structures.GetBlockCount_Result{
+		Count:  uint64(chain.Get_Height()),
 		Status: "OK",
 	}, nil
 }

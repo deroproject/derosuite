@@ -19,8 +19,10 @@ package ringct
 import "testing"
 import "math/rand"
 
+import "github.com/deroproject/derosuite/crypto"
+
 func Test_Range_and_Borromean_Signature(t *testing.T) {
-	var c, mask Key
+	var c, mask crypto.Key
 
 	for i := 0; i < 50; i++ { // test it 500 times
 		var amount uint64 = rand.Uint64()

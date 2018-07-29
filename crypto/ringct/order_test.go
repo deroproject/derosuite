@@ -18,11 +18,13 @@ package ringct
 
 import "testing"
 
+import "github.com/deroproject/derosuite/crypto"
+
 func Test_LowOrder_KeyImage(t *testing.T) {
 
-	k_image := HexToKey("04331738293495ffc0b6121d3c4d3b3fd2931ea0768c5f9ddc4df6867411a20d")
-	curve_order := CurveOrder()
-	mult_result := ScalarMultKey(&k_image, &curve_order)
+	k_image := crypto.HexToKey("04331738293495ffc0b6121d3c4d3b3fd2931ea0768c5f9ddc4df6867411a20d")
+	curve_order := crypto.CurveOrder()
+	mult_result := crypto.ScalarMultKey(&k_image, &curve_order)
 
 	if *mult_result != Identity {
 

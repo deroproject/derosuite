@@ -19,6 +19,8 @@ package transaction
 //import "fmt"
 import "bytes"
 
+//import "runtime/debug"
+
 //import "encoding/binary"
 
 import "github.com/romana/rlog"
@@ -46,10 +48,18 @@ const TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID EXTRA_TAG = 1 // this is encrypted and
 // tx public key must
 // payment id optional
 // encrypted payment id optional
-func (tx *Transaction) Parse_Extra() bool {
+func (tx *Transaction) Parse_Extra() (result bool) {
 	var err error
 	// var length uint64
 	var length_int int
+
+	/*defer func (){
+		if r := recover(); r != nil {
+				fmt.Printf("Recovered while parsing extra, Stack trace below block_hash %s", tx.GetHash())
+				fmt.Printf("Stack trace  \n%s", debug.Stack())
+				result = false
+			}
+	        }()*/
 
 	buf := bytes.NewReader(tx.Extra)
 
@@ -64,22 +74,22 @@ func (tx *Transaction) Parse_Extra() bool {
 			return true
 		}
 		n, err = buf.Read(b)
-		if err != nil {
-			return false
-		}
+		//if err != nil { // we make that the buffer has atleast 1 byte to read
+		//	return false
+		//}
 
 		switch EXTRA_TAG(b[0]) {
 		case TX_EXTRA_PADDING: // this is followed by 1 byte length, then length bytes of padding
 			n, err = buf.Read(b)
 			if err != nil {
-				rlog.Tracef(1, "Extra padding length could not be parsed txhash %s", tx.GetHash())
+				rlog.Tracef(1, "Extra padding length could not be parsed")
 				return false
 			}
 			length_int = int(b[0])
 			padding := make([]byte, length_int, length_int)
 			n, err = buf.Read(padding)
 			if err != nil || n != int(length_int) {
-				rlog.Tracef(1, "Extra padding could not be read  txhash %s", tx.GetHash())
+				rlog.Tracef(1, "Extra padding could not be read  ")
 				return false
 			}
 
@@ -89,14 +99,14 @@ func (tx *Transaction) Parse_Extra() bool {
 			var pkey crypto.Key
 			n, err = buf.Read(pkey[:])
 			if err != nil || n != 32 {
-				rlog.Tracef(1, "Tx public key could not be parsed len=%d err=%s txhash %s", n, err, tx.GetHash())
+				rlog.Tracef(1, "Tx public key could not be parsed len=%d err=%s ", n, err)
 				return false
 			}
 			tx.Extra_map[TX_PUBLIC_KEY] = pkey
 		case TX_EXTRA_NONCE: // this is followed by 1 byte length, then length bytes of data
 			n, err = buf.Read(b)
 			if err != nil {
-				rlog.Tracef(1, "Extra nonce length could not be parsed txhash %s", tx.GetHash())
+				rlog.Tracef(1, "Extra nonce length could not be parsed ")
 				return false
 			}
 
@@ -105,7 +115,7 @@ func (tx *Transaction) Parse_Extra() bool {
 			extra_nonce := make([]byte, length_int, length_int)
 			n, err = buf.Read(extra_nonce)
 			if err != nil || n != int(length_int) {
-				rlog.Tracef(1, "Extra Nonce could not be read  txhash %s", tx.GetHash())
+				rlog.Tracef(1, "Extra Nonce could not be read ")
 				return false
 			}
 
@@ -114,14 +124,16 @@ func (tx *Transaction) Parse_Extra() bool {
 				if extra_nonce[0] == byte(TX_EXTRA_NONCE_PAYMENT_ID) {
 					tx.PaymentID_map[TX_EXTRA_NONCE_PAYMENT_ID] = extra_nonce[1:]
 				} else {
-					rlog.Tracef(1, "Extra Nonce contains invalid payment id  txhash %s", tx.GetHash())
+					rlog.Tracef(1, "Extra Nonce contains invalid payment id ")
+					return false
 				}
 
 			case 9: // encrypted 9 byte payment id
 				if extra_nonce[0] == byte(TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID) {
 					tx.PaymentID_map[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID] = extra_nonce[1:]
 				} else {
-					rlog.Tracef(1, "Extra Nonce contains invalid encrypted payment id  txhash %s", tx.GetHash())
+					rlog.Tracef(1, "Extra Nonce contains invalid encrypted payment id ")
+					return false
 				}
 
 			default: // consider it as general nonce
@@ -132,9 +144,10 @@ func (tx *Transaction) Parse_Extra() bool {
 
 			// NO MORE TAGS are present
 
-		default: // ignore any other unknown tag or data
-			rlog.Tracef(1, "Unhandled TAG %d in tx %s\n", b[0], tx.GetHash())
-			return true
+		default: // any any other unknown tag or data, fails the parsing
+			rlog.Tracef(1, "Unhandled TAG %d \n", b[0])
+			result = false
+			return
 
 		}
 	}
@@ -156,7 +169,11 @@ func (tx *Transaction) Serialize_Extra() []byte {
 		buf.Write(key[:]) // write the key
 	} else {
 		rlog.Tracef(1, "TX does not contain a Public Key, not possible, the transaction will be rejected")
+		return buf.Bytes() // as keys are not provided, no point adding other fields
 	}
+
+	// extra nonce should be serialized only if other nonce are not provided, tx should contain max 1 nonce
+	// it can be either, extra nonce, 32 byte payment id or 8 byte encrypted payment id
 
 	// if payment id are set, they replace nonce
 	// first place unencrypted payment id
@@ -169,6 +186,7 @@ func (tx *Transaction) Serialize_Extra() []byte {
 		rlog.Tracef(1, "unencrypted payment id size mismatch expected = %d actual %d", 32, len(data_bytes))
 	}
 
+	// if encrypted nonce is provide, it will overwrite 32 byte nonce
 	if _, ok := tx.PaymentID_map[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID]; ok {
 		data_bytes := tx.PaymentID_map[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID].([]byte)
 		if len(data_bytes) == 8 { // payment id is valid
@@ -185,8 +203,8 @@ func (tx *Transaction) Serialize_Extra() []byte {
 		data_bytes := tx.Extra_map[TX_EXTRA_NONCE].([]byte)
 
 		if len(data_bytes) > 255 {
-			rlog.Tracef(1, "TX extra none is spilling, trimming the nonce to 255 bytes")
-			data_bytes = data_bytes[:]
+			rlog.Tracef(1, "TX extra none is spilling, trimming the nonce to 254 bytes")
+			data_bytes = data_bytes[:254]
 		}
 		buf.WriteByte(byte(len(data_bytes))) // write length of extra nonce single byte
 		buf.Write(data_bytes[:])             // write the nonce data

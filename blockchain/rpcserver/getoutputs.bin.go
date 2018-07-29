@@ -28,8 +28,36 @@ import "compress/gzip"
 // feeds any outputs requested by the server
 func getoutputs(rw http.ResponseWriter, req *http.Request) {
 	var err error
-	start := uint64(0)
-	stop := uint64(0)
+	start := int64(0)
+	stop := int64(0)
+	start_height := int64(0)
+
+	{ // parse start query parameter
+		keys, ok := req.URL.Query()["startheight"]
+		if !ok || len(keys) < 1 {
+			//log.Println("Url Param 'key' is missing")
+			//return
+		} else {
+			start_string := keys[0]
+			start_height, err = strconv.ParseInt(start_string, 10, 64)
+			if err != nil {
+				start_height = 0
+			}
+
+			//logger.Warnf("sending data from height %d chain height %d\n", start_height, chain.Get_Height())
+
+			// set the start pointer based on vout index
+			if start_height <= int64(chain.Load_TOPO_HEIGHT(nil)) {
+				// convert height to block
+				blid, err := chain.Load_Block_Topological_order_at_index(nil, int64(start_height))
+				//logger.Warnf("sending data from height %d err %s\n", start_height, err)
+				if err == nil {
+					start, _ = chain.Get_Block_Output_Index(nil, blid)
+				}
+
+			}
+		}
+	}
 
 	{ // parse start query parameter
 		keys, ok := req.URL.Query()["start"]
@@ -38,7 +66,7 @@ func getoutputs(rw http.ResponseWriter, req *http.Request) {
 			//return
 		} else {
 			start_string := keys[0]
-			start, err = strconv.ParseUint(start_string, 10, 64)
+			start, err = strconv.ParseInt(start_string, 10, 64)
 			if err != nil {
 				start = 0
 			}
@@ -51,16 +79,27 @@ func getoutputs(rw http.ResponseWriter, req *http.Request) {
 
 		} else {
 			stop_string := keys[0]
-			stop, err = strconv.ParseUint(stop_string, 10, 64)
+			stop, err = strconv.ParseInt(stop_string, 10, 64)
 			if err != nil {
 				stop = 0
 			}
 		}
 	}
 
+	// TODO BUG FIXME
 	// do sanity check of stop  first
-	top_id := chain.Get_Top_ID()
-	biggest_output_index := chain.Block_Count_Vout(top_id) + chain.Get_Block_Output_Index(top_id)
+	//top_id := chain.Get_Top_ID()
+	//biggest_output_index := chain.Block_Count_Vout(nil,top_id) + chain.Get_Block_Output_Index(nil,top_id)
+
+	biggest_output_index := int64(0)
+
+	// convert height to block
+	top_block, err := chain.Load_Block_Topological_order_at_index(nil, chain.Load_TOPO_HEIGHT(nil))
+	//logger.Warnf("sending data from height %d err %s\n", start_height, err)
+	if err == nil {
+		_, biggest_output_index = chain.Get_Block_Output_Index(nil, top_block)
+
+	}
 
 	if stop == 0 || stop > biggest_output_index {
 		stop = biggest_output_index
@@ -71,15 +110,15 @@ func getoutputs(rw http.ResponseWriter, req *http.Request) {
 		start = stop - 1
 	}
 
-	/*   lz4writer := lz4.NewWriter(rw)
-	lz4writer.HighCompression = true // enable extreme but slow compression
-	lz4writer.BlockMaxSize = 256*1024 // small block size to decrease memory consumption
-	*/
+	//   lz4writer := lz4.NewWriter(rw)
+	//lz4writer.HighCompression = true // enable extreme but slow compression
+	//lz4writer.BlockMaxSize = 256*1024 // small block size to decrease memory consumption
+
 	gzipwriter := gzip.NewWriter(rw)
 	defer gzipwriter.Close()
-	for i := start; i <= stop; i++ {
+	for i := start; i < stop; i++ {
 		// load the bytes and send them
-		data, err := chain.Read_output_index(i)
+		data, err := chain.Read_output_index(nil, uint64(i))
 		if err != nil {
 			logger.Warnf("err while reading output err: %s\n", err)
 			break
@@ -92,4 +131,5 @@ func getoutputs(rw http.ResponseWriter, req *http.Request) {
 
 	}
 	//lz4writer.Flush() // flush any pending data
+
 }

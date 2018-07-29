@@ -19,6 +19,7 @@ package rpcserver
 // get block template handler not implemented
 
 //import "fmt"
+import "time"
 import "context"
 
 //import	"log"
@@ -27,32 +28,75 @@ import "context"
 import "github.com/intel-go/fastjson"
 import "github.com/osamingo/jsonrpc"
 
-type (
-	GetBlockTemplate_Handler struct{}
-	GetBlockTemplate_Params  struct {
-		Wallet_Address string `json:"wallet_address"`
-		Reserve_size   uint64 `json:"reserve_size"`
-	}
-	GetBlockTemplate_Result struct {
-		Blocktemplate_blob string `json:"blocktemplate_blob"`
-		Difficulty         uint64 `json:"difficulty"`
-		Height             uint64 `json:"height"`
-		Prev_Hash          string `json:"prev_hash"`
-		Reserved_Offset    uint64 `json:"reserved_offset"`
-		Status             string `json:"status"`
-	}
-)
+import "golang.org/x/time/rate"
+
+import "github.com/deroproject/derosuite/config"
+import "github.com/deroproject/derosuite/address"
+import "github.com/deroproject/derosuite/structures"
+import "github.com/deroproject/derosuite/transaction"
+
+type GetBlockTemplate_Handler struct{}
+
+// rate limiter is deployed, in case RPC is exposed over internet
+// someone should not be just giving fake inputs and delay chain syncing
+var get_block_limiter = rate.NewLimiter(16.0, 8) // 16 req per sec, burst of 8 req is okay
+
 
 func (h GetBlockTemplate_Handler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-
-	var p GetBlockTemplate_Params
+	var p structures.GetBlockTemplate_Params
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
+	
+	
+	if !get_block_limiter.Allow() { // if rate limiter allows, then add block to chain
+		logger.Warnf("Too many get block template requests per sec rejected by chain.")
+                
+                return nil,&jsonrpc.Error{
+		Code:    jsonrpc.ErrorCodeInvalidRequest,
+		Message: "Too many get block template requests per sec rejected by chain.",
+	}
+	
+            
+	}
 
-	// Wallet_Address needs to validated before
+	/*
+		return structures.GetBlockTemplate_Result{
+				Status: "GetBlockTemplate_Handler NOT implemented",
+			}, nil
 
-	return GetBlockTemplate_Result{
-		Status: "NOT IMPLEMENTED",
+	*/
+
+	// validate address
+	miner_address, err := address.NewAddress(p.Wallet_Address)
+	if err != nil {
+		return structures.GetBlockTemplate_Result{
+			Status: "Wallet address could not be parsed",
+		}, nil
+	}
+
+	if p.Reserve_size > 255 || p.Reserve_size < 1 {
+		return structures.GetBlockTemplate_Result{
+			Status: "Reserve size should be > 0 and < 255",
+		}, nil
+	}
+	
+	bl, block_hashing_blob_hex, block_template_hex, reserved_pos := chain.Create_new_block_template_mining(chain.Get_Top_ID(), *miner_address, int(p.Reserve_size))
+
+	prev_hash := ""
+	for i := range bl.Tips {
+		prev_hash = prev_hash + bl.Tips[i].String()
+	}
+	return structures.GetBlockTemplate_Result{
+		Blocktemplate_blob: block_template_hex,
+		Blockhashing_blob:  block_hashing_blob_hex,
+		Reserved_Offset:    uint64(reserved_pos),
+		Expected_reward:    0, // fill in actual reward
+		Height:             bl.Miner_TX.Vin[0].(transaction.Txin_gen).Height,
+		Prev_Hash:          prev_hash,
+		Epoch:              uint64(uint64(time.Now().UTC().Unix()) + config.BLOCK_TIME), // expiry time of this block
+		Difficulty:         chain.Get_Difficulty_At_Tips(nil, bl.Tips).Uint64(),
+		Status:             "OK",
 	}, nil
+
 }

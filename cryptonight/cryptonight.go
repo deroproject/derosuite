@@ -16,12 +16,15 @@
 
 package cryptonight
 
-import "fmt"
+//import "fmt"
 import "unsafe"
-import "encoding/hex"
+
+//import "encoding/hex"
 import "encoding/binary"
 import "github.com/aead/skein"
 import "github.com/dchest/blake256"
+
+var HardwareAES bool = false
 
 const MAX_ARRAY_LIMIT = (4 * 1024 * 1024)
 
@@ -99,6 +102,10 @@ func cryptonight(input []byte) []byte {
 	b[0] = S[2] ^ S[6]
 	b[1] = S[3] ^ S[7]
 
+	var x [2]uint64
+	_ = x
+
+	// the big slow
 	for i := 0; i < 0x80000; i++ {
 		// {
 		c[0] = ScratchPad[((a[0]&0x1FFFF0)>>3)+0]
@@ -115,7 +122,16 @@ func cryptonight(input []byte) []byte {
 		b[0] = ScratchPad[((c[0]&0x1FFFF0)>>3)+0]
 		b[1] = ScratchPad[((c[0]&0x1FFFF0)>>3)+1]
 
+		/*  // faster assembly implmentation for mul on amd64
+		x[0]= c[0]
+		x[1]= b[0]
+		mul6464128(&x[0])
+		a[1] += x[1]
+		a[0] += x[0]
+		*/
+
 		// time to do 64 bit * 64 bit multiply
+		// this is faster than the assembly
 		var lower64, upper64 uint64
 		{
 
@@ -140,7 +156,6 @@ func cryptonight(input []byte) []byte {
 			_ = upper64
 
 		}
-
 		a[1] += lower64
 		a[0] += upper64
 
@@ -245,42 +260,7 @@ Get long hash a73bd37aba3454776b40733854a8349fe6359eb2c91d93bc727c69431c1d1f95
 */
 
 func SlowHash(msg []byte) []byte {
-
-	hash := cryptonight(append(msg, byte(0x01)))
-	// hash := cryptonight(msg)
-	return hash
-
-}
-func main() {
-
-	fmt.Printf("Hello World\n")
-	// convert initial input to first 15 uint64
-
-	var msg = []byte("This is a testi" + "\x01") // append final 1  blake
-	// var msg = []byte("This is a test" + "\x01") // append final 1  groestl
-	// var msg = []byte("This is a test2" + "\x01") // append final 1  jh hash
-
-	//var msg = []byte("This is a testw" + "\x01") // append final 1  skein
-
-	hash := cryptonight(msg)
-
-	fmt.Printf("hash in hex %s\n", hex.EncodeToString(hash))
-
-	//keccak := New256()
-
-	//keccak.Sum([]byte("This is a test"));
-
-	/* var  JH256_H0 = [128]uint8{0xeb,0x98,0xa3,0x41,0x2c,0x20,0xd3,0xeb,0x92,0xcd,0xbe,0x7b,0x9c,0xb2,0x45,0xc1,0x1c,0x93,0x51,0x91,0x60,0xd4,0xc7,0xfa,0x26,0x0,0x82,0xd6,0x7e,0x50,0x8a,0x3,0xa4,0x23,0x9e,0x26,0x77,0x26,0xb9,0x45,0xe0,0xfb,0x1a,0x48,0xd4,0x1a,0x94,0x77,0xcd,0xb5,0xab,0x26,0x2,0x6b,0x17,0x7a,0x56,0xf0,0x24,0x42,0xf,0xff,0x2f,0xa8,0x71,0xa3,0x96,0x89,0x7f,0x2e,0x4d,0x75,0x1d,0x14,0x49,0x8,0xf7,0x7d,0xe2,0x62,0x27,0x76,0x95,0xf7,0x76,0x24,0x8f,0x94,0x87,0xd5,0xb6,0x57,0x47,0x80,0x29,0x6c,0x5c,0x5e,0x27,0x2d,0xac,0x8e,0xd,0x6c,0x51,0x84,0x50,0xc6,0x57,0x5,0x7a,0xf,0x7b,0xe4,0xd3,0x67,0x70,0x24,0x12,0xea,0x89,0xe3,0xab,0x13,0xd3,0x1c,0xd7,0x69}
-
-	   for i := 0 ; i <16;i++{
-	   //    fmt.Printf("%d %X\n",i,  binary.LittleEndian.Uint64(JH256_H0[i<<3:]))
-	   }*/
-
-	var output [32]byte
-	var input = []byte("hello")
-	crypto_hash(output[:], input, uint64(len(input)))
-
-	fmt.Printf("Output GROEestl hash %x\n", output)
+	return cryptonight(append(msg, byte(0x01)))
 }
 
 // Rotate
@@ -323,14 +303,40 @@ func CNAESTransform(X, Key []uint32) {
 
 	//  fmt.Printf("X %08X %08X  \n", X[0],X[1]) ;
 
-	for i := uint32(0); i < 10; i++ {
+	/*
+		for i := uint32(0); i < 10; i++ {
+			CNAESRnd(X, Key[(i<<2):])
+		}*/
+	if HardwareAES {
+		/*encryptAESRound(&Key[0<<2],&X[0],&X[0])
+		encryptAESRound(&Key[1<<2],&X[0],&X[0])
+		encryptAESRound(&Key[2<<2],&X[0],&X[0])
+		encryptAESRound(&Key[3<<2],&X[0],&X[0])
+		encryptAESRound(&Key[4<<2],&X[0],&X[0])
+		encryptAESRound(&Key[5<<2],&X[0],&X[0])
+		encryptAESRound(&Key[6<<2],&X[0],&X[0])
+		encryptAESRound(&Key[7<<2],&X[0],&X[0])
+		encryptAESRound(&Key[8<<2],&X[0],&X[0])
+		encryptAESRound(&Key[9<<2],&X[0],&X[0])
+		*/
+		encrypt10AESRound(&Key[0<<2], &X[0], &X[0])
+	} else {
+		for i := uint32(0); i < 10; i++ {
+			CNAESRnd(X, Key[(i<<2):])
+		}
 
-		CNAESRnd(X, Key[(i<<2):])
 	}
+
 }
 
 func CNAESRnd(X, key []uint32) {
 
+	if HardwareAES {
+		encryptAESRound(&key[0], &X[0], &X[0])
+		return
+	}
+
+	// use software implementation, of no AES detected or CPU not X86
 	var Y [4]uint32
 
 	Y[0] = CNAESTbl[BYTE(X[0], 0)] ^ ROTL32(CNAESTbl[BYTE(X[1], 1)], 8) ^ ROTL32(CNAESTbl[BYTE(X[2], 2)], 16) ^ ROTL32(CNAESTbl[BYTE(X[3], 3)], 24)

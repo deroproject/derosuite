@@ -16,13 +16,20 @@
 
 package globals
 
+import "os"
+import "fmt"
+import "math"
 import "net/url"
+import "strings"
 import "strconv"
+import "math/big"
+import "path/filepath"
 import "golang.org/x/net/proxy"
 import "github.com/sirupsen/logrus"
 import log "github.com/sirupsen/logrus"
 
 import "github.com/deroproject/derosuite/config"
+import "github.com/deroproject/derosuite/address"
 
 type ChainState int // block chain can only be in 2 state, either SYNCRONISED or syncing
 
@@ -81,6 +88,7 @@ func Initialize() {
 		Log_Level = logrus.DebugLevel
 		Logger.SetLevel(logrus.DebugLevel)
 	}
+	Logger.AddHook(&HOOK) // add rlog hook
 
 	// choose  socks based proxy if user requested so
 	if Arguments["--socks-proxy"] != nil {
@@ -102,6 +110,12 @@ func Initialize() {
 	ilog_formatter.DisableColors = true
 	ilog_formatter.DisableTimestamp = true
 
+	// lets create data directories
+	err = os.MkdirAll(GetDataDirectory(), 0750)
+	if err != nil {
+		fmt.Printf("Error creating/accessing directory %s , err %s\n", GetDataDirectory(), err)
+	}
+
 }
 
 // tells whether we are in mainnet mode
@@ -115,19 +129,134 @@ func IsMainnet() bool {
 	return false
 }
 
+// return different directories for different networks ( mainly mainnet, testnet, simulation )
+// this function is specifically for daemon
+func GetDataDirectory() string {
+	data_directory, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error obtaining current directory, using temp dir err %s\n", err)
+		data_directory = os.TempDir()
+	}
+
+	// if user provided an option, override default
+	if Arguments["--data-dir"] != nil {
+		data_directory = Arguments["--data-dir"].(string)
+	}
+
+	if IsMainnet() {
+		return filepath.Join(data_directory, "mainnet")
+	}
+
+	return filepath.Join(data_directory, "testnet")
+}
+
 /* this function converts a logrus entry into a txt formater based entry with no colors  for tracing*/
 func CTXString(entry *logrus.Entry) string {
 
 	entry.Level = logrus.DebugLevel
-	data, err := ilog_formatter.Format(entry)
-	_ = err
+	data, _ := ilog_formatter.Format(entry)
 	return string(data)
 }
 
-// never do any division operation on money
-// ISSUE: dividing 10 into 3 parts will give 3.33.. etc., adding result 3 times will 9.9999, so some money is lost
+// never do any division operation on money due to floating point issues
+// newbies, see type the next in python interpretor "3.33-3.13"
 //
 func FormatMoney(amount uint64) string {
-	amountf := float64(amount) / 1000000000000.0 // float64 gives 14 char precision, we need only 12
-	return strconv.FormatFloat(amountf, 'f', 12, 64)
+	return FormatMoneyPrecision(amount, 8) // default is 8 precision after floating point
+}
+
+// 0
+func FormatMoney0(amount uint64) string {
+	return FormatMoneyPrecision(amount, 0)
+}
+
+//8 precision
+func FormatMoney8(amount uint64) string {
+	return FormatMoneyPrecision(amount, 8)
+}
+
+// 12 precision
+func FormatMoney12(amount uint64) string {
+	return FormatMoneyPrecision(amount, 12) // default is 8 precision after floating point
+}
+
+// format money with specific precision
+func FormatMoneyPrecision(amount uint64, precision int) string {
+	hard_coded_decimals := new(big.Float).SetInt64(1000000000000)
+	float_amount, _, _ := big.ParseFloat(fmt.Sprintf("%d", amount), 10, 0, big.ToZero)
+	result := new(big.Float)
+	result.Quo(float_amount, hard_coded_decimals)
+	return result.Text('f', precision) // 8 is display precision after floating point
+}
+
+// this will parse and validate an address, in reference to the current main/test mode
+func ParseValidateAddress(str string) (addr *address.Address, err error) {
+	addr, err = address.NewAddress(strings.TrimSpace(str))
+	if err != nil {
+		return
+	}
+
+	// check whether the domain is valid
+	if !addr.IsDERONetwork() {
+		err = fmt.Errorf("Invalid DERO address")
+		return
+	}
+
+	if IsMainnet() != addr.IsMainnet() {
+		if IsMainnet() {
+			err = fmt.Errorf("Address belongs to DERO testnet and is invalid")
+		} else {
+			err = fmt.Errorf("Address belongs to DERO mainnet and is invalid")
+		}
+		return
+	}
+
+	return
+}
+
+// this will covert an amount in string form to atomic units
+func ParseAmount(str string) (amount uint64, err error) {
+	float_amount, base, err := big.ParseFloat(strings.TrimSpace(str), 10, 0, big.ToZero)
+
+	if err != nil {
+		err = fmt.Errorf("Amount could not be parsed err: %s", err)
+		return
+	}
+	if base != 10 {
+		err = fmt.Errorf("Amount should be in base 10 (0123456789)")
+		return
+	}
+	if float_amount.Cmp(new(big.Float).Abs(float_amount)) != 0 { // number and abs(num) not equal means number is neg
+		err = fmt.Errorf("Amount cannot be negative")
+		return
+	}
+
+	// multiply by 12 zeroes
+	hard_coded_decimals := new(big.Float).SetInt64(1000000000000)
+	float_amount.Mul(float_amount, hard_coded_decimals)
+
+	/*if !float_amount.IsInt() {
+	    err =  fmt.Errorf("Amount  is invalid %s ", float_amount.Text('f',0))
+	    return
+	}*/
+
+	// convert amount to uint64
+	//amount, _ = float_amount.Uint64() // sanity checks again
+	amount, err = strconv.ParseUint(float_amount.Text('f', 0), 10, 64)
+	if err != nil {
+		err = fmt.Errorf("Amount  is invalid %s ", float_amount.Text('f', 0))
+		return
+	}
+	if amount == 0 {
+		err = fmt.Errorf("0 cannot be transferred")
+		return
+	}
+
+	if amount == math.MaxUint64 {
+		err = fmt.Errorf("Amount  is invalid")
+		return
+	}
+
+	return // return the number
+
 }

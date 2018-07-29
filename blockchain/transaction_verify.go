@@ -17,38 +17,61 @@
 package blockchain
 
 //import "fmt"
-//import "time"
+import "time"
+
 /*import "bytes"
 import "encoding/binary"
 
 import "github.com/romana/rlog"
 
 */
-//import "github.com/romana/rlog"
 
+import "sync"
 import "runtime/debug"
 
+import "github.com/romana/rlog"
 import log "github.com/sirupsen/logrus"
 
+import "github.com/deroproject/derosuite/config"
 import "github.com/deroproject/derosuite/block"
 import "github.com/deroproject/derosuite/crypto"
-import "github.com/deroproject/derosuite/globals"
+import "github.com/deroproject/derosuite/storage"
 import "github.com/deroproject/derosuite/crypto/ringct"
 import "github.com/deroproject/derosuite/transaction"
-import "github.com/deroproject/derosuite/emission"
 
-/* This function verifies tx fully, means all checks,
- * if the transaction has passed the check it can be added to mempool, relayed or added to blockchain
- * the transaction has already been deserialized thats it
- * */
-func (chain *Blockchain) Verify_Transaction(tx *transaction.Transaction) (result bool) {
+//import "github.com/deroproject/derosuite/emission"
 
-	return false
+// caches x of transactions validity
+// it is always atomic
+// the cache is not txhash -> validity mapping
+// instead it is txhash+expanded ringmembers
+// if the entry exist, the tx is valid
+// it stores special hash and first seen time
+// this can only be used on expanded transactions
+var transaction_valid_cache sync.Map
+
+// this go routine continuously scans and cleans up the cache for expired entries
+func clean_up_valid_cache() {
+
+	for {
+		time.Sleep(3600 * time.Second)
+		current_time := time.Now()
+
+		// track propagation upto 10 minutes
+		transaction_valid_cache.Range(func(k, value interface{}) bool {
+			first_seen := value.(time.Time)
+			if current_time.Sub(first_seen).Round(time.Second).Seconds() > 3600 {
+				transaction_valid_cache.Delete(k)
+			}
+			return true
+		})
+
+	}
 }
 
 /* Coinbase transactions need to verify the amount of coins
  * */
-func (chain *Blockchain) Verify_Transaction_Coinbase(cbl *block.Complete_Block, minertx *transaction.Transaction) (result bool) {
+func (chain *Blockchain) Verify_Transaction_Coinbase(dbtx storage.DBTX, cbl *block.Complete_Block, minertx *transaction.Transaction) (result bool) {
 
 	if !minertx.IsCoinbase() { // transaction is not coinbase, return failed
 		return false
@@ -63,65 +86,24 @@ func (chain *Blockchain) Verify_Transaction_Coinbase(cbl *block.Complete_Block, 
 		return false
 	}
 
+	public_key := minertx.Vout[0].Target.(transaction.Txout_to_key).Key
+
+	if !public_key.Public_Key_Valid() { // if public_key is not valid ( not a point on the curve reject the TX)
+		logger.WithFields(log.Fields{"txid": minertx.GetHash()}).Warnf("TX public is INVALID %s ", public_key)
+		return false
+
+	}
+
 	// check whether the height mentioned in tx.Vin is equal to block height
 	// this does NOT hold for genesis block so test it differently
 
-	expected_height := chain.Load_Height_for_BL_ID(cbl.Bl.Prev_Hash)
-	expected_height++
-	if cbl.Bl.GetHash() == globals.Config.Genesis_Block_Hash {
-		expected_height = 0
-	}
-	if minertx.Vin[0].(transaction.Txin_gen).Height != expected_height {
-		logger.Warnf(" Rejected Height %d   should be %d", minertx.Vin[0].(transaction.Txin_gen).Height, chain.Load_Height_for_BL_ID(cbl.Bl.Prev_Hash))
+	expected_height := chain.Calculate_Height_At_Tips(dbtx, cbl.Bl.Tips)
+
+	if minertx.Vin[0].(transaction.Txin_gen).Height != uint64(expected_height) {
+		logger.Warnf("Rejected  Block due to invalid Height  actual %d   expected %d", minertx.Vin[0].(transaction.Txin_gen).Height, expected_height)
 		return false
 
 	}
-
-	// verify coins amount ( minied amount ) + the fees colllected which is sum of all tx included in this block
-	// and whether it has been calculated correctly
-	total_fees := uint64(0)
-	for i := 0; i < len(cbl.Txs); i++ {
-		total_fees += cbl.Txs[i].RctSignature.Get_TX_Fee()
-	}
-
-	total_reward := minertx.Vout[0].Amount
-	base_reward := total_reward - total_fees
-
-	// size of block = size of miner_tx + size of all non coinbase tx
-	sizeofblock := uint64(0)
-	sizeofblock += uint64(len(cbl.Bl.Miner_tx.Serialize()))
-	//    logger.Infof("size of block %d  sizeof miner tx %d", sizeofblock, len(cbl.Bl.Miner_tx.Serialize()))
-	for i := 0; i < len(cbl.Txs); i++ {
-		sizeofblock += uint64(len(cbl.Txs[i].Serialize()))
-		//        logger.Infof("size of tx i %d   tx size %d total size %d", i, uint64(len(cbl.Txs[i].Serialize())) ,sizeofblock)
-	}
-
-	median_block_size := chain.Get_Median_BlockSize_At_Block(cbl.Bl.Prev_Hash)
-
-	already_generated_coins := chain.Load_Already_Generated_Coins_for_BL_ID(cbl.Bl.Prev_Hash)
-
-	base_reward_calculated := emission.GetBlockReward(median_block_size, sizeofblock, already_generated_coins, 6, 0)
-	if base_reward != base_reward_calculated {
-		logger.Warnf("Base reward %d   should be %d", base_reward, base_reward_calculated)
-		logger.Warnf("median_block_size %d   block_size %d already already_generated_coins %d", median_block_size, sizeofblock,
-			already_generated_coins)
-		return false
-	}
-
-	/*
-	   for i := sizeofblock-4000; i < (sizeofblock+4000);i++{
-	   // now we need to verify whether base reward is okay
-	   //base_reward_calculated := emission.GetBlockReward(median_block_size,sizeofblock,already_generated_coins,6,0)
-
-	       base_reward_calculated := emission.GetBlockReward(median_block_size,i,already_generated_coins,6,0)
-
-	    if base_reward == base_reward_calculated {
-	        logger.Warnf("Base reward %d   should be %d  size %d", base_reward, base_reward_calculated,i)
-
-	    }
-
-	   }
-	*/
 
 	return true
 }
@@ -129,11 +111,16 @@ func (chain *Blockchain) Verify_Transaction_Coinbase(cbl *block.Complete_Block, 
 // all non miner tx must be non-coinbase tx
 // each check is placed in a separate  block of code, to avoid ambigous code or faulty checks
 // all check are placed and not within individual functions ( so as we cannot skip a check )
-func (chain *Blockchain) Verify_Transaction_NonCoinbase(tx *transaction.Transaction) (result bool) {
+// This function verifies tx fully, means all checks,
+// if the transaction has passed the check it can be added to mempool, relayed or added to blockchain
+// the transaction has already been deserialized thats it
+//
+func (chain *Blockchain) Verify_Transaction_NonCoinbase(dbtx storage.DBTX, hf_version int64, tx *transaction.Transaction) (result bool) {
 	result = false
 
 	var tx_hash crypto.Hash
-	defer func() { // safety so if anything wrong happens, verification fails
+	var tx_serialized []byte // serialized tx
+	defer func() {           // safety so if anything wrong happens, verification fails
 		if r := recover(); r != nil {
 			logger.WithFields(log.Fields{"txid": tx_hash}).Warnf("Recovered while Verifying transaction, failed verification, Stack trace below")
 			logger.Warnf("Stack trace  \n%s", debug.Stack())
@@ -170,10 +157,32 @@ func (chain *Blockchain) Verify_Transaction_NonCoinbase(tx *transaction.Transact
 		}
 	}
 
+	if hf_version >= 2 {
+
+		/*  // if ever a need comes ups
+		if len(tx.Vin) >= config.MAX_VIN{
+			rlog.Warnf("Tx %s has more Vins than allowed limit 299 actual %d",tx_hash,len(tx.Vin))
+			return
+		}*/
+
+		if len(tx.Vout) >= config.MAX_VOUT {
+			rlog.Warnf("Tx %s has more Vouts than allowed limit 7 actual %d", tx_hash, len(tx.Vout))
+			return
+		}
+	}
+
 	// Vout can be only specific type rest all make th fail case
 	for i := 0; i < len(tx.Vout); i++ {
 		switch tx.Vout[i].Target.(type) {
 		case transaction.Txout_to_key: // pass
+
+			public_key := tx.Vout[i].Target.(transaction.Txout_to_key).Key
+
+			if !public_key.Public_Key_Valid() { // if public_key is not valid ( not a point on the curve reject the TX)
+				logger.WithFields(log.Fields{"txid": tx_hash}).Warnf("TX public is INVALID %s ", public_key)
+				return false
+
+			}
 		default:
 			return false
 		}
@@ -187,26 +196,26 @@ func (chain *Blockchain) Verify_Transaction_NonCoinbase(tx *transaction.Transact
 		}
 	}
 
-	// just some extra logs for testing purposes
-	if len(tx.Vin) >= 3 {
-		logger.WithFields(log.Fields{"txid": tx_hash}).Warnf("tx has more than 3 inputs")
-	}
-
-	if len(tx.Vout) >= 3 {
-		logger.WithFields(log.Fields{"txid": tx_hash}).Warnf("tx has more than 3 outputs")
-	}
-
 	// check the mixin , it should be atleast 4 and should be same through out the tx ( all other inputs)
 	// someone did send a mixin of 3 in 12006 block height
-	mixin := len(tx.Vin[0].(transaction.Txin_to_key).Key_offsets)
-	if mixin < 3 {
-		logger.WithFields(log.Fields{"txid": tx_hash, "Mixin": mixin}).Warnf("Mixin must be atleast 3 in ringCT world")
-		return false
-	}
-	for i := 0; i < len(tx.Vin); i++ {
-		if mixin != len(tx.Vin[i].(transaction.Txin_to_key).Key_offsets) {
-			logger.WithFields(log.Fields{"txid": tx_hash, "Mixin": mixin}).Warnf("Mixin must be same for entire TX in ringCT world")
+	// atlantis has minimum mixin of 5
+	if hf_version >= 2 {
+		mixin := len(tx.Vin[0].(transaction.Txin_to_key).Key_offsets)
+
+		if mixin < config.MIN_MIXIN {
+			logger.WithFields(log.Fields{"txid": tx_hash, "Mixin": mixin}).Warnf("Mixin cannot be more than %d.", config.MIN_MIXIN)
 			return false
+		}
+		if mixin >= config.MAX_MIXIN {
+			logger.WithFields(log.Fields{"txid": tx_hash, "Mixin": mixin}).Warnf("Mixin cannot be more than %d.", config.MAX_MIXIN)
+			return false
+		}
+
+		for i := 0; i < len(tx.Vin); i++ {
+			if mixin != len(tx.Vin[i].(transaction.Txin_to_key).Key_offsets) {
+				logger.WithFields(log.Fields{"txid": tx_hash, "Mixin": mixin}).Warnf("Mixin must be same for entire TX in ringCT world")
+				return false
+			}
 		}
 	}
 
@@ -223,6 +232,8 @@ func (chain *Blockchain) Verify_Transaction_NonCoinbase(tx *transaction.Transact
 			}
 			ring_members[ring_member] = true // add member to ring member
 		}
+
+		//	rlog.Debugf("Ring members for %d %+v", i, ring_members )
 	}
 
 	// check whether the key image is duplicate within the inputs
@@ -243,58 +254,143 @@ func (chain *Blockchain) Verify_Transaction_NonCoinbase(tx *transaction.Transact
 
 	// check whether the key image is low order attack, if yes reject it right now
 	for i := 0; i < len(tx.Vin); i++ {
-		k_image := ringct.Key(tx.Vin[i].(transaction.Txin_to_key).K_image)
-		curve_order := ringct.CurveOrder()
-		mult_result := ringct.ScalarMultKey(&k_image, &curve_order)
-		if *mult_result != ringct.Identity {
+		k_image := crypto.Key(tx.Vin[i].(transaction.Txin_to_key).K_image)
+		curve_order := crypto.CurveOrder()
+		mult_result := crypto.ScalarMultKey(&k_image, &curve_order)
+		if *mult_result != crypto.Identity {
 			logger.WithFields(log.Fields{
 				"txid":        tx_hash,
 				"kimage":      tx.Vin[i].(transaction.Txin_to_key).K_image,
 				"curve_order": curve_order,
 				"mult_result": *mult_result,
-				"identity":    ringct.Identity,
+				"identity":    crypto.Identity,
 			}).Warnf("TX contains a low order key image attack, but we are already safeguarded")
 			return false
 		}
 	}
 
-	// a similiar block level check is done for double spending attacks within the block itself
-	// check whether the key image is already used or spent earlier ( in blockchain )
-/*
-	for i := 0; i < len(tx.Vin); i++ {
-		k_image := ringct.Key(tx.Vin[i].(transaction.Txin_to_key).K_image)
-		if chain.Read_KeyImage_Status(crypto.Hash(k_image)) {
-			logger.WithFields(log.Fields{
-				"txid":   tx_hash,
-				"kimage": k_image,
-			}).Warnf("Key image is already spent, attempt to double spend ")
+	// disallow old transactions with borrowmean signatures
+	if hf_version >= 2 {
+		switch tx.RctSignature.Get_Sig_Type() {
+		case ringct.RCTTypeSimple, ringct.RCTTypeFull:
 			return false
 		}
 	}
-*/
+
 	// check whether the TX contains a signature or NOT
 	switch tx.RctSignature.Get_Sig_Type() {
-	case ringct.RCTTypeSimple, ringct.RCTTypeFull: // default case, pass through
+	case ringct.RCTTypeSimpleBulletproof, ringct.RCTTypeSimple, ringct.RCTTypeFull: // default case, pass through
 	default:
 		logger.WithFields(log.Fields{"txid": tx_hash}).Warnf("TX does NOT contain a ringct signature. It is NOT possible")
 		return false
 	}
 
+	// check tx size for validity
+	if hf_version >= 2 {
+		tx_serialized = tx.Serialize()
+		if len(tx_serialized) >= config.CRYPTONOTE_MAX_TX_SIZE {
+			rlog.Warnf("tx %s rejected Size(%d) is more than allowed(%d)", tx_hash, len(tx.Serialize()), config.CRYPTONOTE_MAX_TX_SIZE)
+			return false
+		}
+	}
+
 	// expand the signature first
 	// whether the inputs are mature and can be used at time is verified while expanding the inputs
-	if !chain.Expand_Transaction_v2(tx) {
-		logger.WithFields(log.Fields{"txid": tx_hash}).Warnf("TX inputs could not be expanded or inputs are NOT mature")
+
+	//rlog.Debugf("txverify tx %s hf_version %d", tx_hash, hf_version )
+	if !chain.Expand_Transaction_v2(dbtx, hf_version, tx) {
+		rlog.Warnf("TX %s inputs could not be expanded or inputs are NOT mature", tx_hash)
 		return false
+	}
+
+	//logger.Infof("Expanded tx %+v", tx.RctSignature)
+
+	// create a temporary hash out of expanded transaction
+	// this feature is very critical and helps the daemon by spreading out the compute load
+	// over the entire time between 2 blocks
+	// this tremendously helps in block propagation times
+	// and make them easy to process just like like small 50 KB blocks
+
+	// each ring member if 64 bytes
+	tmp_buffer := make([]byte, 0, len(tx.Vin)*32+len(tx.Vin)*len(tx.Vin[0].(transaction.Txin_to_key).Key_offsets)*64)
+
+	// build the buffer for special hash
+	// DO NOT skip anything, use full serialized tx, it is used while building keccak hash
+	// use everything from tx expansion etc
+	for i := 0; i < len(tx.Vin); i++ { // append all mlsag sigs
+		tmp_buffer = append(tmp_buffer, tx.RctSignature.MlsagSigs[i].II[0][:]...)
+	}
+	for i := 0; i < len(tx.RctSignature.MixRing); i++ {
+		for j := 0; j < len(tx.RctSignature.MixRing[i]); j++ {
+			tmp_buffer = append(tmp_buffer, tx.RctSignature.MixRing[i][j].Destination[:]...)
+			tmp_buffer = append(tmp_buffer, tx.RctSignature.MixRing[i][j].Mask[:]...)
+		}
+	}
+
+	// 1 less allocation this way
+	special_hash := crypto.Keccak256(tx_serialized, tmp_buffer)
+
+	if _, ok := transaction_valid_cache.Load(special_hash); ok {
+		//logger.Infof("Found in cache %s ",tx_hash)
+		return true
+	} else {
+		//logger.Infof("TX not found in cache %s len %d ",tx_hash, len(tmp_buffer))
 	}
 
 	// check the ring signature
 	if !tx.RctSignature.Verify() {
+
+		//logger.Infof("tx expanded %+v\n", tx.RctSignature.MixRing)
 		logger.WithFields(log.Fields{"txid": tx_hash}).Warnf("TX RCT Signature failed")
 		return false
 
 	}
 
-	logger.WithFields(log.Fields{"txid": tx_hash}).Debugf("TX successfully verified")
+	// signature got verified, cache it
+	transaction_valid_cache.Store(special_hash, time.Now())
+	//logger.Infof("TX validity marked in cache %s ",tx_hash)
+
+	//logger.WithFields(log.Fields{"txid": tx_hash}).Debugf("TX successfully verified")
+
+	return true
+}
+
+// double spend check is separate from the core checks ( due to softforks )
+func (chain *Blockchain) Verify_Transaction_NonCoinbase_DoubleSpend_Check(dbtx storage.DBTX, tx *transaction.Transaction) (result bool) {
+	result = false
+
+	var tx_hash crypto.Hash
+	defer func() { // safety so if anything wrong happens, verification fails
+		if r := recover(); r != nil {
+			logger.WithFields(log.Fields{"txid": tx_hash}).Warnf("Recovered while Verifying transaction, failed verification, Stack trace below")
+			logger.Warnf("Stack trace  \n%s", debug.Stack())
+			result = false
+		}
+	}()
+
+	tx_hash = tx.GetHash()
+
+	// a similiar block level check is done for double spending attacks within the block itself
+	// check whether the key image is already used or spent earlier ( in blockchain )
+	for i := 0; i < len(tx.Vin); i++ {
+		k_image := crypto.Key(tx.Vin[i].(transaction.Txin_to_key).K_image)
+		if spent_height, ok := chain.Read_KeyImage_Status(dbtx, crypto.Hash(k_image)); ok {
+			_ = spent_height
+			//rlog.Warnf("Key image is already spent at height %d, attempt to double spend KI %s TXID %s", spent_height,k_image,tx_hash)
+			return false
+		}
+	}
+	return true
+
+}
+
+// verify all non coinbase tx, single threaded for double spending on current active chain
+func (chain *Blockchain) Verify_Block_DoubleSpending(dbtx storage.DBTX, cbl *block.Complete_Block) (result bool) {
+	for i := 0; i < len(cbl.Txs); i++ {
+		if !chain.Verify_Transaction_NonCoinbase_DoubleSpend_Check(dbtx, cbl.Txs[i]) {
+			return false
+		}
+	}
 
 	return true
 }

@@ -17,34 +17,38 @@
 package block
 
 import "fmt"
+
+//import "sort"
 import "bytes"
+import "runtime/debug"
 import "encoding/hex"
 import "encoding/binary"
 
+import "github.com/ebfe/keccak"
 import "github.com/romana/rlog"
 
 import "github.com/deroproject/derosuite/crypto"
-import "github.com/deroproject/derosuite/config"
+
+//import "github.com/deroproject/derosuite/config"
 import "github.com/deroproject/derosuite/cryptonight"
 import "github.com/deroproject/derosuite/transaction"
 
 // these are defined  in file
 //https://github.com/monero-project/monero/src/cryptonote_basic/cryptonote_basic.h
 type Block_Header struct {
-	Major_Version uint32      `json:"major_version"`
-	Minor_Version uint32      `json:"minor_version"`
-	Timestamp     uint64      `json:"timestamp"`
-	Prev_Hash     crypto.Hash `json:"prev_id"`
-	Nonce         uint32      `json:"nonce"`
+	Major_Version uint64                  `json:"major_version"`
+	Minor_Version uint64                  `json:"minor_version"`
+	Timestamp     uint64                  `json:"timestamp"`
+	Nonce         uint32                  `json:"nonce"` // TODO make nonce 32 byte array for infinite work capacity
+	ExtraNonce    [32]byte                `json:"-"`
+	Miner_TX      transaction.Transaction `json:"miner_tx"`
 }
 
 type Block struct {
 	Block_Header
-	Miner_tx    transaction.Transaction `json:"miner_tx"`
-	Merkle_Root crypto.Hash             `json:"-"`
-	Tx_hashes   []crypto.Hash           `json:"tx_hashes"`
-
-	treehash crypto.Hash
+	Proof     [32]byte      `json:"-"` // Reserved for future
+	Tips      []crypto.Hash `json:"tips"`
+	Tx_hashes []crypto.Hash `json:"tx_hashes"`
 }
 
 // we process incoming blocks in this format
@@ -55,35 +59,79 @@ type Complete_Block struct {
 
 // see spec here https://cryptonote.org/cns/cns003.txt
 // this function gets the block identifier hash
+// this has been simplified and varint length has been removed
 func (bl *Block) GetHash() (hash crypto.Hash) {
-	buf := make([]byte, binary.MaxVarintLen64)
 	long_header := bl.GetBlockWork()
-	length := uint64(len(long_header))
-	n := binary.PutUvarint(buf, length) //
-	buf = buf[:n]
-	block_id_blob := append(buf, long_header...)
 
 	// keccak hash of this above blob, gives the block id
-	hash2 := crypto.Keccak256(block_id_blob)
-	return crypto.Hash(hash2)
+	return crypto.Keccak256(long_header)
 }
 
 // converts a block, into a getwork style work, ready for either submitting the block
 // or doing Pow Calculations
 func (bl *Block) GetBlockWork() []byte {
-	buf := make([]byte, binary.MaxVarintLen64)
-	header := bl.SerializeHeader()
-	tx_treehash := bl.GetTreeHash() // treehash of all transactions
 
-	// length of all transactions
-	n := binary.PutUvarint(buf, uint64(len(bl.Tx_hashes)+1)) // +1 for miner TX
-	buf = buf[:n]
+	var buf []byte // bitcoin/litecoin getworks are 80 bytes
+	var scratch [8]byte
 
-	long_header := append(header, tx_treehash[:]...)
-	long_header = append(long_header, buf...)
+	buf = append(buf, []byte{byte(bl.Major_Version), byte(bl.Minor_Version), 0, 0, 0, 0, 0}...) // 0 first 7 bytes are version in little endia format
 
-	return long_header
+	binary.LittleEndian.PutUint32(buf[2:6], uint32(bl.Timestamp))
+	header_hash := crypto.Keccak256(bl.getserializedheaderforwork()) // 0 + 7
 
+	buf = append(buf, header_hash[:]...) // 0 + 7 + 32  = 39
+
+	binary.LittleEndian.PutUint32(scratch[0:4], bl.Nonce) // check whether it needs to be big endian
+	buf = append(buf, scratch[:4]...)                     // 0 + 7 + 32  + 4 = 43
+
+	// next place the ExtraNonce
+	buf = append(buf, bl.ExtraNonce[:]...) // total 7 + 32 + 4 + 32
+
+	buf = append(buf, 0) // total 7 + 32 + 4 + 32 + 1 = 76
+
+	if len(buf) != 76 {
+		panic(fmt.Sprintf("Getwork not equal to  76 bytes  actual %d", len(buf)))
+
+	}
+	return buf
+}
+
+// copy the nonce and the extra nonce from the getwork to the block
+func (bl *Block) CopyNonceFromBlockWork(work []byte) (err error) {
+	if len(work) < 74 {
+		return fmt.Errorf("work buffer is Invalid")
+	}
+
+	bl.Timestamp = uint64(binary.LittleEndian.Uint32(work[2:]))
+	bl.Nonce = binary.LittleEndian.Uint32(work[7+32:])
+	copy(bl.ExtraNonce[:], work[7+32+4:75])
+	return
+}
+
+// copy the nonce and the extra nonce from the getwork to the block
+func (bl *Block) SetExtraNonce(extranonce []byte) (err error) {
+
+	if len(extranonce) == 0 {
+		return fmt.Errorf("extra nonce is invalid")
+	}
+	max := len(extranonce)
+	if max > 32 {
+		max = 32
+	}
+	copy(bl.ExtraNonce[:], extranonce[0:max])
+	return
+}
+
+// clear extra nonce
+func (bl *Block) ClearExtraNonce() {
+	for i := range bl.ExtraNonce {
+		bl.ExtraNonce[i] = 0
+	}
+}
+
+// clear nonce
+func (bl *Block) ClearNonce() {
+	bl.Nonce = 0
 }
 
 // Get PoW hash , this is very slow function
@@ -91,18 +139,43 @@ func (bl *Block) GetPoWHash() (hash crypto.Hash) {
 	long_header := bl.GetBlockWork()
 	rlog.Tracef(9, "longheader %x\n", long_header)
 	tmphash := cryptonight.SlowHash(long_header)
+	//   tmphash := crypto.Scrypt_1024_1_1_256(long_header)
 	copy(hash[:], tmphash[:32])
 
 	return
 }
 
-// Reward is, total amount in the miner tx - fees
-func (bl *Block) GetReward() uint64 {
-	total_amount := bl.Miner_tx.Vout[0].Amount
-	total_fees := uint64(0)
-	// load all the TX and get the fees, since we are in a post rct world
-	// extract the fees from the rct sig
-	return total_amount - total_fees
+// serialize block header for calculating PoW
+func (bl *Block) getserializedheaderforwork() []byte {
+	var serialised bytes.Buffer
+
+	buf := make([]byte, binary.MaxVarintLen64)
+
+	n := binary.PutUvarint(buf, uint64(bl.Major_Version))
+	serialised.Write(buf[:n])
+
+	n = binary.PutUvarint(buf, uint64(bl.Minor_Version))
+	serialised.Write(buf[:n])
+
+	// it is placed in pow
+	//n = binary.PutUvarint(buf, bl.Timestamp)
+	//serialised.Write(buf[:n])
+
+	// write miner tx
+	serialised.Write(bl.Miner_TX.Serialize())
+
+	// write tips,, merkle tree should be replaced with something faster
+	tips_treehash := bl.GetTipsHash()
+	n = binary.PutUvarint(buf, uint64(len(tips_treehash)))
+	serialised.Write(buf[:n])
+	serialised.Write(tips_treehash[:]) // actual tips hash
+
+	tx_treehash := bl.GetTXSHash()                        // hash of all transactions
+	n = binary.PutUvarint(buf, uint64(len(bl.Tx_hashes))) // count of all transactions
+	serialised.Write(buf[:n])
+	serialised.Write(tx_treehash[:]) // actual transactions hash
+
+	return serialised.Bytes()
 }
 
 // serialize block header
@@ -121,10 +194,13 @@ func (bl *Block) SerializeHeader() []byte {
 	n = binary.PutUvarint(buf, bl.Timestamp)
 	serialised.Write(buf[:n])
 
-	serialised.Write(bl.Prev_Hash[:32]) // write previous ID
-
 	binary.LittleEndian.PutUint32(buf[0:8], bl.Nonce) // check whether it needs to be big endian
 	serialised.Write(buf[:4])
+
+	serialised.Write(bl.ExtraNonce[:])
+
+	// write miner address
+	serialised.Write(bl.Miner_TX.Serialize())
 
 	return serialised.Bytes()
 
@@ -138,13 +214,22 @@ func (bl *Block) Serialize() []byte {
 	header := bl.SerializeHeader()
 	serialized.Write(header)
 
+	serialized.Write(bl.Proof[:]) // write proof  NOT implemented
+
 	// miner tx should always be coinbase
-	minex_tx := bl.Miner_tx.Serialize()
-	serialized.Write(minex_tx)
+	//minex_tx := bl.Miner_tx.Serialize()
+	//serialized.Write(minex_tx)
+
+	n := binary.PutUvarint(buf, uint64(len(bl.Tips)))
+	serialized.Write(buf[:n])
+
+	for _, hash := range bl.Tips {
+		serialized.Write(hash[:])
+	}
 
 	//fmt.Printf("serializing tx hashes %d\n", len(bl.Tx_hashes))
 
-	n := binary.PutUvarint(buf, uint64(len(bl.Tx_hashes)))
+	n = binary.PutUvarint(buf, uint64(len(bl.Tx_hashes)))
 	serialized.Write(buf[:n])
 
 	for _, hash := range bl.Tx_hashes {
@@ -155,124 +240,49 @@ func (bl *Block) Serialize() []byte {
 }
 
 // get block transactions tree hash
-func (bl *Block) GetTreeHash() (hash crypto.Hash) {
-	var hash_list []crypto.Hash
+func (bl *Block) GetTipsHash() (result crypto.Hash) {
 
-	hash_list = append(hash_list, bl.Miner_tx.GetHash())
+	/*if len(bl.Tips) == 0 { // case for genesis block
+	  panic("Block does NOT refer any tips")
+	 }*/
+
 	// add all the remaining hashes
-	for i := range bl.Tx_hashes {
-		hash_list = append(hash_list, bl.Tx_hashes[i])
+	h := keccak.New256()
+	for i := range bl.Tips {
+		h.Write(bl.Tips[i][:])
 	}
-
-	return TreeHash(hash_list)
-
-}
-
-// input is the list of transactions hashes
-func TreeHash(hashes []crypto.Hash) (hash crypto.Hash) {
-
-	switch len(hashes) {
-	case 0:
-		panic("Treehash cannot have 0 transactions, atleast miner tx will be present")
-	case 1:
-		copy(hash[:], hashes[0][:32])
-	case 2:
-		var buf []byte
-		for i := 0; i < len(hashes); i++ {
-			buf = append(buf, hashes[i][:32]...)
-		}
-		tmp_hash := crypto.Keccak256(buf)
-		copy(hash[:], tmp_hash[:32])
-
-	default:
-
-		count := uint64(len(hashes))
-		cnt := tree_hash_cnt(count)
-
-		//fmt.Printf("cnt %d count %d\n",cnt, count)
-		ints := make([]byte, 32*cnt, 32*cnt)
-
-		hashes_buf := make([]byte, 32*count, 32*count)
-
-		for i := uint64(0); i < count; i++ {
-			copy(hashes_buf[i*32:], hashes[i][:32]) // copy hashes 1 by 1
-		}
-
-		for i := uint64(0); i < ((2 * cnt) - count); i++ {
-			copy(ints[i*32:], hashes[i][:32]) // copy hashes 1 by 1
-		}
-
-		i := ((2 * cnt) - count)
-		j := ((2 * cnt) - count)
-		for ; j < cnt; i, j = i+2, j+1 {
-			hash := crypto.Keccak256(hashes_buf[i*32 : (i*32)+64]) // find hash of 64 bytes
-			copy(ints[j*32:], hash[:32])
-		}
-		if i != count {
-			panic("please fix tree hash")
-		}
-
-		for cnt > 2 {
-			cnt = cnt >> 1
-			i = 0
-			j = 0
-			for ; j < cnt; i, j = i+2, j+1 {
-				hash := crypto.Keccak256(ints[i*32 : (i*32)+64]) // find hash of 64 bytes
-				copy(ints[j*32:], hash[:32])
-			}
-		}
-
-		hash = crypto.Hash(crypto.Keccak256(ints[0:64])) // find hash of 64 bytes
-	}
+	r := h.Sum(nil)
+	copy(result[:], r)
 	return
 }
 
-// see crypto/tree-hash.c
-// this function has a naughty history
-func tree_hash_cnt(count uint64) uint64 {
-	pow := uint64(2)
-	for pow < count {
-		pow = pow << 1
+// get block transactions
+// we have discarded the merkle tree and have shifted to a plain version
+func (bl *Block) GetTXSHash() (result crypto.Hash) {
+	h := keccak.New256()
+	for i := range bl.Tx_hashes {
+		h.Write(bl.Tx_hashes[i][:])
 	}
-	return pow >> 1
+	r := h.Sum(nil)
+	copy(result[:], r)
+
+	return
 }
 
-func (bl *Block) Deserialize(buf []byte) (err error) {
+// only parses header
+func (bl *Block) DeserializeHeader(buf []byte) (err error) {
 	done := 0
-	var tmp uint64
-
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Printf("Panic while deserialising block, block hex_dump below to make a testcase/debug\n")
-			fmt.Printf("%s", hex.EncodeToString(buf))
-			err = fmt.Errorf("Invalid Block")
-			return
-		}
-	}()
-
-	tmp, done = binary.Uvarint(buf)
+	bl.Major_Version, done = binary.Uvarint(buf)
 	if done <= 0 {
-		return fmt.Errorf("Invalid Version in Block\n")
+		return fmt.Errorf("Invalid Major Version in Block\n")
 	}
 	buf = buf[done:]
 
-	bl.Major_Version = uint32(tmp)
-
-	if uint64(bl.Major_Version) != tmp {
-		return fmt.Errorf("Invalid Block major version")
-	}
-
-	tmp, done = binary.Uvarint(buf)
+	bl.Minor_Version, done = binary.Uvarint(buf)
 	if done <= 0 {
-		return fmt.Errorf("Invalid minor Version in Block\n")
+		return fmt.Errorf("Invalid Minor Version in Block\n")
 	}
 	buf = buf[done:]
-
-	bl.Minor_Version = uint32(tmp)
-
-	if uint64(bl.Minor_Version) != tmp {
-		return fmt.Errorf("Invalid Block minor version")
-	}
 
 	bl.Timestamp, done = binary.Uvarint(buf)
 	if done <= 0 {
@@ -280,14 +290,57 @@ func (bl *Block) Deserialize(buf []byte) (err error) {
 	}
 	buf = buf[done:]
 
-	copy(bl.Prev_Hash[:], buf[:32]) // hash is always 32 byte
-	buf = buf[32:]
+	//copy(bl.Prev_Hash[:], buf[:32]) // hash is always 32 byte
+	//buf = buf[32:]
 
 	bl.Nonce = binary.LittleEndian.Uint32(buf)
-	buf = buf[4:] // nonce is always 4 bytes
+
+	buf = buf[4:]
+
+	copy(bl.ExtraNonce[:], buf[0:32])
+
+	buf = buf[32:]
+
+	// parse miner tx
+	err = bl.Miner_TX.DeserializeHeader(buf)
+	if err != nil {
+		return err
+	}
+
+	return
+}
+
+//parse entire block completely
+func (bl *Block) Deserialize(buf []byte) (err error) {
+	done := 0
+
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Panic while deserialising block, block hex_dump below to make a testcase/debug\n")
+			fmt.Printf("%s\n", hex.EncodeToString(buf))
+
+			fmt.Printf("Recovered while parsing block, Stack trace below block_hash ")
+			fmt.Printf("Stack trace  \n%s", debug.Stack())
+			err = fmt.Errorf("Invalid Block")
+			return
+		}
+	}()
+
+	err = bl.DeserializeHeader(buf)
+	if err != nil {
+		return fmt.Errorf("Block Header could not be parsed\n")
+	}
+
+	buf = buf[len(bl.SerializeHeader()):] // skup number of bytes processed
+
+	// read 32 byte proof
+	copy(bl.Proof[:], buf[0:32])
+	buf = buf[32:]
+
+	// header finished here
 
 	// read and parse transaction
-	err = bl.Miner_tx.DeserializeHeader(buf)
+	/*err = bl.Miner_tx.DeserializeHeader(buf)
 
 	if err != nil {
 		return fmt.Errorf("Cannot parse miner TX  %x", buf)
@@ -301,6 +354,25 @@ func (bl *Block) Deserialize(buf []byte) (err error) {
 
 	miner_tx_serialized_size := bl.Miner_tx.Serialize()
 	buf = buf[len(miner_tx_serialized_size):]
+	*/
+
+	tips_count, done := binary.Uvarint(buf)
+	if done <= 0 || done > 1 {
+		return fmt.Errorf("Invalid Tips count in Block\n")
+	}
+	buf = buf[done:]
+
+	// remember first tx is merkle root
+
+	for i := uint64(0); i < tips_count; i++ {
+		//fmt.Printf("Parsing transaction hash %d  tx_count %d\n", i, tx_count)
+		var h crypto.Hash
+		copy(h[:], buf[:32])
+		buf = buf[32:]
+
+		bl.Tips = append(bl.Tips, h)
+
+	}
 
 	//fmt.Printf("miner tx %x\n", miner_tx_serialized_size)
 	// read number of transactions

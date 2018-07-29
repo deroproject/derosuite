@@ -24,35 +24,61 @@ import "context"
 //import	"log"
 //import 	"net/http"
 
+import "encoding/hex"
 import "github.com/intel-go/fastjson"
 import "github.com/osamingo/jsonrpc"
 
-type (
-	SubmitBlock_Handler struct{}
-	SubmitBlock_Params  struct {
-		Wallet_Address string `json:"wallet_address"`
-		Reserve_size   uint64 `json:"reserve_size"`
-	}
-	SubmitBlock_Result struct {
-		Blocktemplate_blob string `json:"blocktemplate_blob"`
-		Difficulty         uint64 `json:"difficulty"`
-		Height             uint64 `json:"height"`
-		Prev_Hash          string `json:"prev_hash"`
-		Reserved_Offset    uint64 `json:"reserved_offset"`
-		Status             string `json:"status"`
-	}
-)
+import "github.com/deroproject/derosuite/structures"
+
+type SubmitBlock_Handler struct{}
 
 func (h SubmitBlock_Handler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
+	// parameter is an array of blockdata
+	var block_data [2]string
 
-	var p GetBlockTemplate_Params
-	if err := jsonrpc.Unmarshal(params, &p); err != nil {
+	//logger.Infof("Submitting block results")
+
+	if err := jsonrpc.Unmarshal(params, &block_data); err != nil {
+                logger.Warnf("Submitted block could be json parsed")
 		return nil, err
 	}
 
-	// Wallet_Address needs to validated before
+	block_data_bytes, err := hex.DecodeString(block_data[0])
+	if err != nil {
+		logger.Infof("Submitting block could not be decoded")
+		return structures.SubmitBlock_Result{
+			Status: "Could NOT decode block",
+		}, nil
+	}
 
-	return SubmitBlock_Result{
-		Status: "NOT IMPLEMENTED",
+	hashing_blob, err := hex.DecodeString(block_data[1])
+	if err != nil || len(block_data[1]) == 0 {
+		logger.Infof("Submitting block hashing_blob could not be decoded")
+		return structures.SubmitBlock_Result{
+			Status: "Could NOT decode block",
+		}, nil
+	}
+
+	blid, result, err := chain.Accept_new_block(block_data_bytes, hashing_blob)
+
+	if result {
+		logger.Infof("Submitted block %s accepted",blid)
+		return structures.SubmitBlock_Result{
+                        BLID: blid.String(),
+			Status: "OK",
+		}, nil
+	}
+
+	if err != nil {
+		logger.Infof("Submitting block %s err %s",blid, err)
+		return structures.SubmitBlock_Result{
+			Status: err.Error(),
+		}, nil
+	}
+
+	logger.Infof("Submitting block rejected err %s", err)
+	return structures.SubmitBlock_Result{
+		Status: "REJECTED",
 	}, nil
+
 }

@@ -39,8 +39,8 @@ func Is_Input_Mature(current_chain_height uint64, input_block_height uint64, loc
 	}
 
 	// 99.99 % normal tx cases come here
-	if locked_to_height == 0 { // input is not locked, so it must be unlocked in 10 blocks
-		if current_chain_height >= (input_block_height + config.NORMAL_TX_AMOUNT_UNLOCK - 2) {
+	if locked_to_height == 0 { // input is not locked, so it must be unlocked in 8 blocks
+		if current_chain_height >= (input_block_height + (config.NORMAL_TX_AMOUNT_UNLOCK)) {
 			return true
 		}
 		return false

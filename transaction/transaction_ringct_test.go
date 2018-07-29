@@ -21,6 +21,7 @@ import "bytes"
 import "testing"
 import "encoding/hex"
 
+import "github.com/deroproject/derosuite/crypto"
 import "github.com/deroproject/derosuite/crypto/ringct"
 
 // the tests are here because data depends on tx  which is currently part of blockchain
@@ -42,11 +43,11 @@ func Test_RingCT_Full_block_72_2c4738d3856e8e3e8f9fc4818a9197d4911af3010e067ec56
 		t.Errorf("Tx Deserialisation failed")
 	}
 
-	tx.RctSignature.Message = ringct.Key(tx.GetPrefixHash())
+	tx.RctSignature.Message = crypto.Key(tx.GetPrefixHash())
 
-	key_image := ringct.HexToKey("b27b6cf2e0dcfc35f2767608cace34e59b1d507d3ef6c5ad7142a1c3aad0d860")
+	key_image := crypto.HexToKey("b27b6cf2e0dcfc35f2767608cace34e59b1d507d3ef6c5ad7142a1c3aad0d860")
 
-	tx.RctSignature.MlsagSigs[0].II = make([]ringct.Key, 1, 1)
+	tx.RctSignature.MlsagSigs[0].II = make([]crypto.Key, 1, 1)
 	tx.RctSignature.MlsagSigs[0].II[0] = key_image
 
 	// the mixin information is pulled from the chain live
@@ -58,20 +59,60 @@ func Test_RingCT_Full_block_72_2c4738d3856e8e3e8f9fc4818a9197d4911af3010e067ec56
 	tx.RctSignature.MixRing[3] = make([]ringct.CtKey, 1, 1)
 	tx.RctSignature.MixRing[4] = make([]ringct.CtKey, 1, 1)
 
-	tx.RctSignature.MixRing[0][0].Destination = ringct.HexToKey("06959bb285aaa009e04546528c7f9b413d30f3ffb4627e27588a5c23a2adf932")
-	tx.RctSignature.MixRing[0][0].Mask = ringct.HexToKey("c46cd7c3e779b4c99f2d265946f4f543f0f3b46d9f2c2a24c3ae8d830d4a1c50")
-	tx.RctSignature.MixRing[1][0].Destination = ringct.HexToKey("6ecee25c56cc30f6f65ac4d96424d4bf51f4843bb167f4f17187e621d8270d0a")
-	tx.RctSignature.MixRing[1][0].Mask = ringct.HexToKey("7264c8f0aa30dee999466bd024cacd39a1119eb8f7bc8230ee0147e7757394c3")
-	tx.RctSignature.MixRing[2][0].Destination = ringct.HexToKey("8f1c86cd47647d011ea3c5ac2e66e86f73341a6117027c94e6c63f3ad1f11b97")
-	tx.RctSignature.MixRing[2][0].Mask = ringct.HexToKey("1b8e9d569763c19ce311b99f23ecfd766b2b23ac857712b387cfb58a94bbc268")
-	tx.RctSignature.MixRing[3][0].Destination = ringct.HexToKey("5dafd55ff112a0a77d22af7f09a6c8c2129ff89cfe7b11fb4b5a22f038a6dc3a")
-	tx.RctSignature.MixRing[3][0].Mask = ringct.HexToKey("1ed903c01169c6fcd78b7a37dbb91670eb1df711bcb02377dcbfe4ebcdab6bcf")
-	tx.RctSignature.MixRing[4][0].Destination = ringct.HexToKey("4a306eaef4a690694f39803b145ca55e34562a1eb11af68af75486cf5f0e4570")
-	tx.RctSignature.MixRing[4][0].Mask = ringct.HexToKey("cb6f92e45dd8a2422cdfc8f2f6ced10998c5804b3dda148b62593f9a8b5c662f")
+	tx.RctSignature.MixRing[0][0].Destination = crypto.HexToKey("06959bb285aaa009e04546528c7f9b413d30f3ffb4627e27588a5c23a2adf932")
+	tx.RctSignature.MixRing[0][0].Mask = crypto.HexToKey("c46cd7c3e779b4c99f2d265946f4f543f0f3b46d9f2c2a24c3ae8d830d4a1c50")
+	tx.RctSignature.MixRing[1][0].Destination = crypto.HexToKey("6ecee25c56cc30f6f65ac4d96424d4bf51f4843bb167f4f17187e621d8270d0a")
+	tx.RctSignature.MixRing[1][0].Mask = crypto.HexToKey("7264c8f0aa30dee999466bd024cacd39a1119eb8f7bc8230ee0147e7757394c3")
+	tx.RctSignature.MixRing[2][0].Destination = crypto.HexToKey("8f1c86cd47647d011ea3c5ac2e66e86f73341a6117027c94e6c63f3ad1f11b97")
+	tx.RctSignature.MixRing[2][0].Mask = crypto.HexToKey("1b8e9d569763c19ce311b99f23ecfd766b2b23ac857712b387cfb58a94bbc268")
+	tx.RctSignature.MixRing[3][0].Destination = crypto.HexToKey("5dafd55ff112a0a77d22af7f09a6c8c2129ff89cfe7b11fb4b5a22f038a6dc3a")
+	tx.RctSignature.MixRing[3][0].Mask = crypto.HexToKey("1ed903c01169c6fcd78b7a37dbb91670eb1df711bcb02377dcbfe4ebcdab6bcf")
+	tx.RctSignature.MixRing[4][0].Destination = crypto.HexToKey("4a306eaef4a690694f39803b145ca55e34562a1eb11af68af75486cf5f0e4570")
+	tx.RctSignature.MixRing[4][0].Mask = crypto.HexToKey("cb6f92e45dd8a2422cdfc8f2f6ced10998c5804b3dda148b62593f9a8b5c662f")
 
 	// test whether it passes range proof
 	if tx.RctSignature.VerifyRctFull() != true || tx.RctSignature.Verify() != true {
-		t.Errorf("Tx Ringct full test failed")
+		t.Fatalf("Tx Ringct full test failed")
+	}
+
+	// check whether key image test fails
+	{
+		//backup_byte := key_image[0]
+		tx.RctSignature.MlsagSigs[0].II[0][0] = 0 // patch keyimage byte
+		if tx.RctSignature.VerifyRctFull() == true || tx.RctSignature.Verify() == true {
+		t.Fatalf("Tx Ringct should have failed but it passed")
+		}
+		tx.RctSignature.MlsagSigs[0].II[0] = key_image // restore for another test
+	}
+
+	{
+		tx.RctSignature.MixRing[0][0].Destination[0] = 0 // patch Destination byte
+		if tx.RctSignature.VerifyRctFull() == true || tx.RctSignature.Verify() == true {
+		t.Fatalf("Tx Ringct should have failed but it passed")
+		}
+		tx.RctSignature.MixRing[0][0].Destination[0] = 6
+	}
+	{
+		tx.RctSignature.MixRing[0][0].Mask[0] = 0 // patch Mask byte
+		if tx.RctSignature.VerifyRctFull() == true || tx.RctSignature.Verify() == true {
+		t.Fatalf("Tx Ringct should have failed but it passed")
+		}
+		tx.RctSignature.MixRing[0][0].Mask[0] = 0xc4
+	}
+
+	// check dependency of prefix hash
+
+	{
+		tx.RctSignature.Message[0]= 0
+		if tx.RctSignature.VerifyRctFull() == true || tx.RctSignature.Verify() == true {
+		t.Fatalf("Tx Ringct should have failed but it passed")
+		}
+		tx.RctSignature.Message = crypto.Key(tx.GetPrefixHash())
+
+	}
+	
+	if tx.RctSignature.VerifyRctFull() != true || tx.RctSignature.Verify() != true {
+		t.Fatalf("Tx Ringct full test failed")
 	}
 
 }
@@ -104,15 +145,15 @@ func Test_RingCT_simple_block_726_2649e0eac5b836ed36b3f4e512824855e222cff7b84652
 
 	}
 
-	tx.RctSignature.Message = ringct.Key(tx.GetPrefixHash())
+	tx.RctSignature.Message = crypto.Key(tx.GetPrefixHash())
 
-	key_image1 := ringct.HexToKey("ea57543450b2b743e729af2daf02c07d65928d25965fec14be1b70464ec2ebf1")
-	key_image2 := ringct.HexToKey("7beed79270b09d389e28307c0360971d0bbc946e16e453d32178ba0c398b88ec")
+	key_image1 := crypto.HexToKey("ea57543450b2b743e729af2daf02c07d65928d25965fec14be1b70464ec2ebf1")
+	key_image2 := crypto.HexToKey("7beed79270b09d389e28307c0360971d0bbc946e16e453d32178ba0c398b88ec")
 
-	tx.RctSignature.MlsagSigs[0].II = make([]ringct.Key, 1, 1)
+	tx.RctSignature.MlsagSigs[0].II = make([]crypto.Key, 1, 1)
 	tx.RctSignature.MlsagSigs[0].II[0] = key_image1
 
-	tx.RctSignature.MlsagSigs[1].II = make([]ringct.Key, 1, 1)
+	tx.RctSignature.MlsagSigs[1].II = make([]crypto.Key, 1, 1)
 	tx.RctSignature.MlsagSigs[1].II[0] = key_image2
 
 	// the mixin information is pulled from the chain live
@@ -122,28 +163,28 @@ func Test_RingCT_simple_block_726_2649e0eac5b836ed36b3f4e512824855e222cff7b84652
 	tx.RctSignature.MixRing[1] = make([]ringct.CtKey, mixin, mixin)
 
 	// mixin ring members data for the first input
-	tx.RctSignature.MixRing[0][0].Destination = ringct.HexToKey("1b49d3d98e6b4e806b98aa914835cd8a289cc2e095133ae70d3c6f3cc7d853da")
-	tx.RctSignature.MixRing[0][0].Mask = ringct.HexToKey("40a31aebb78704dfd3863ac70a9f41875e901dc5b47304d391cecaddc98b9d85")
-	tx.RctSignature.MixRing[0][1].Destination = ringct.HexToKey("2585cdb08b46f1379c0667bb65ef1b378018e73056ebab6de61925f2f92ac757")
-	tx.RctSignature.MixRing[0][1].Mask = ringct.HexToKey("087ff2bad0fb9b04558e411d37995021bc6905c8524b09a126d16cb06ea64ccd")
-	tx.RctSignature.MixRing[0][2].Destination = ringct.HexToKey("33d1d1c361ba2389c8962bc5ca343d98d3b12356f40cec28ce58a3074e0bf17e")
-	tx.RctSignature.MixRing[0][2].Mask = ringct.HexToKey("e91b5819282e26d342ba5be35db49382f3c0d5e9b87a4db22587f8bdff7c9fd4")
-	tx.RctSignature.MixRing[0][3].Destination = ringct.HexToKey("1fe98b07454eb16345aa029242d1fc0a038729ede9f5d6972244ea5de35a8994")
-	tx.RctSignature.MixRing[0][3].Mask = ringct.HexToKey("b4318aed49e2d144dc51dacd1e64ab634b4516ae0c029e5943ee03021ebd0d29")
-	tx.RctSignature.MixRing[0][4].Destination = ringct.HexToKey("f5f5b71901d11518a63a164ec7bfdb0114e7fd9f24f30c559ebb7267e9c132a0")
-	tx.RctSignature.MixRing[0][4].Mask = ringct.HexToKey("481a7708cc2dabc885b94fe2383221e6725a4e0e1c80235d9320cf9a621d2d9e")
+	tx.RctSignature.MixRing[0][0].Destination = crypto.HexToKey("1b49d3d98e6b4e806b98aa914835cd8a289cc2e095133ae70d3c6f3cc7d853da")
+	tx.RctSignature.MixRing[0][0].Mask = crypto.HexToKey("40a31aebb78704dfd3863ac70a9f41875e901dc5b47304d391cecaddc98b9d85")
+	tx.RctSignature.MixRing[0][1].Destination = crypto.HexToKey("2585cdb08b46f1379c0667bb65ef1b378018e73056ebab6de61925f2f92ac757")
+	tx.RctSignature.MixRing[0][1].Mask = crypto.HexToKey("087ff2bad0fb9b04558e411d37995021bc6905c8524b09a126d16cb06ea64ccd")
+	tx.RctSignature.MixRing[0][2].Destination = crypto.HexToKey("33d1d1c361ba2389c8962bc5ca343d98d3b12356f40cec28ce58a3074e0bf17e")
+	tx.RctSignature.MixRing[0][2].Mask = crypto.HexToKey("e91b5819282e26d342ba5be35db49382f3c0d5e9b87a4db22587f8bdff7c9fd4")
+	tx.RctSignature.MixRing[0][3].Destination = crypto.HexToKey("1fe98b07454eb16345aa029242d1fc0a038729ede9f5d6972244ea5de35a8994")
+	tx.RctSignature.MixRing[0][3].Mask = crypto.HexToKey("b4318aed49e2d144dc51dacd1e64ab634b4516ae0c029e5943ee03021ebd0d29")
+	tx.RctSignature.MixRing[0][4].Destination = crypto.HexToKey("f5f5b71901d11518a63a164ec7bfdb0114e7fd9f24f30c559ebb7267e9c132a0")
+	tx.RctSignature.MixRing[0][4].Mask = crypto.HexToKey("481a7708cc2dabc885b94fe2383221e6725a4e0e1c80235d9320cf9a621d2d9e")
 
 	// mixin ring members data for the second input
-	tx.RctSignature.MixRing[1][0].Destination = ringct.HexToKey("8fd92c715604eaa7364e91b6e6d7a556a3acd8faccacdfeee03bb509a6219d93")
-	tx.RctSignature.MixRing[1][0].Mask = ringct.HexToKey("2aa50f825dda8a698b2c72d45af0013fabc6427d5d7404745d68fcc4371ad51d")
-	tx.RctSignature.MixRing[1][1].Destination = ringct.HexToKey("3966afd77d1e1e544832cbae29bb4ba8585baebc8f840339aef436af8cadfc9c")
-	tx.RctSignature.MixRing[1][1].Mask = ringct.HexToKey("b1f74dd419401716a734d8a5bf5c0ce602ccaf52e1e477cb5231f584f43387c0")
-	tx.RctSignature.MixRing[1][2].Destination = ringct.HexToKey("8123e2329679674f066f0b4fa49d0ba9652f93e394ec072ad4ea2671723bf4c2")
-	tx.RctSignature.MixRing[1][2].Mask = ringct.HexToKey("6a1ecd9721faa6e3ede1f443ba47f62bd34c8dfccfb245d03d979870cae167e6")
-	tx.RctSignature.MixRing[1][3].Destination = ringct.HexToKey("48068b173a0051d21d8d0e1d70cbab043b3391f9c1daefa7d7e7ce93ac90be27")
-	tx.RctSignature.MixRing[1][3].Mask = ringct.HexToKey("48677f0f2e0e1243ecd22ba2038691545fda58742c5a851fcda05999b5d31b67")
-	tx.RctSignature.MixRing[1][4].Destination = ringct.HexToKey("e1594fdb28baa22571fdf487f20c1439c4ddf34952d3a405d8bdfa366aa9d86e")
-	tx.RctSignature.MixRing[1][4].Mask = ringct.HexToKey("210e5eb6fce6d6c161ff27eabb7c8fb498f8c3cbb26726dab0f59537694592a2")
+	tx.RctSignature.MixRing[1][0].Destination = crypto.HexToKey("8fd92c715604eaa7364e91b6e6d7a556a3acd8faccacdfeee03bb509a6219d93")
+	tx.RctSignature.MixRing[1][0].Mask = crypto.HexToKey("2aa50f825dda8a698b2c72d45af0013fabc6427d5d7404745d68fcc4371ad51d")
+	tx.RctSignature.MixRing[1][1].Destination = crypto.HexToKey("3966afd77d1e1e544832cbae29bb4ba8585baebc8f840339aef436af8cadfc9c")
+	tx.RctSignature.MixRing[1][1].Mask = crypto.HexToKey("b1f74dd419401716a734d8a5bf5c0ce602ccaf52e1e477cb5231f584f43387c0")
+	tx.RctSignature.MixRing[1][2].Destination = crypto.HexToKey("8123e2329679674f066f0b4fa49d0ba9652f93e394ec072ad4ea2671723bf4c2")
+	tx.RctSignature.MixRing[1][2].Mask = crypto.HexToKey("6a1ecd9721faa6e3ede1f443ba47f62bd34c8dfccfb245d03d979870cae167e6")
+	tx.RctSignature.MixRing[1][3].Destination = crypto.HexToKey("48068b173a0051d21d8d0e1d70cbab043b3391f9c1daefa7d7e7ce93ac90be27")
+	tx.RctSignature.MixRing[1][3].Mask = crypto.HexToKey("48677f0f2e0e1243ecd22ba2038691545fda58742c5a851fcda05999b5d31b67")
+	tx.RctSignature.MixRing[1][4].Destination = crypto.HexToKey("e1594fdb28baa22571fdf487f20c1439c4ddf34952d3a405d8bdfa366aa9d86e")
+	tx.RctSignature.MixRing[1][4].Mask = crypto.HexToKey("210e5eb6fce6d6c161ff27eabb7c8fb498f8c3cbb26726dab0f59537694592a2")
 
 	// test whether it passes range proof
 	if tx.RctSignature.VerifyRctSimple() != true || tx.RctSignature.Verify() != true {

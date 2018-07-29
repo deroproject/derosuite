@@ -32,6 +32,7 @@ import "fmt"
 import "net"
 import "bytes"
 import "strings"
+import "strconv"
 import "encoding/hex"
 import "net/http"
 import "html/template"
@@ -44,11 +45,13 @@ import "github.com/ybbus/jsonrpc"
 
 import "github.com/deroproject/derosuite/block"
 import "github.com/deroproject/derosuite/crypto"
+import "github.com/deroproject/derosuite/globals"
 import "github.com/deroproject/derosuite/transaction"
-import "github.com/deroproject/derosuite/blockchain/rpcserver"
+import "github.com/deroproject/derosuite/structures"
+import "github.com/deroproject/derosuite/proof"
 
 var command_line string = `dero_explorer
-DERO Explorer: A secure, private blockchain with smart-contracts
+DERO Atlantis Explorer: A secure, private blockchain with smart-contracts
 
 Usage:
   dero_explorer [--help] [--version] [--debug] [--rpc-server-address=<127.0.0.1:18091>] [--http-address=<0.0.0.0:8080>] 
@@ -82,16 +85,16 @@ func main() {
 	}
 
 	log.Debugf("Arguments %+v", arguments)
-	log.Infof("DERO Exporer :  This is under heavy development, use it for testing/evaluations purpose only")
+	log.Infof("DERO Atlantis Exporer :  This is under heavy development, use it for testing/evaluations purpose only")
 	log.Infof("Copyright 2017-2018 DERO Project. All rights reserved.")
-	endpoint = "127.0.0.1:9999"
+	endpoint = "127.0.0.1:30306"
 	if arguments["--rpc-server-address"] != nil {
 		endpoint = arguments["--rpc-server-address"].(string)
 	}
 
 	log.Infof("using RPC endpoint %s", endpoint)
 
-	listen_address := "0.0.0.0:8080"
+	listen_address := "0.0.0.0:8081"
 	if arguments["--http-address"] != nil {
 		listen_address = arguments["--http-address"].(string)
 	}
@@ -120,7 +123,7 @@ func main() {
 	} else {
 		log.Fatalf("Connection to RPC server Failed err %s", err)
 	}
-	var info rpcserver.GetInfo_Result
+	var info structures.GetInfo_Result
 	err = response.GetObject(&info)
 
 	fmt.Printf("%+v  err %s\n", info, err)
@@ -140,41 +143,59 @@ func main() {
 
 // all the tx info which ever needs to be printed
 type txinfo struct {
-	Height     string // height at which tx was mined
-	Depth      uint64
-	Timestamp  uint64 // timestamp
-	Age        string //  time diff from current time
-	Block_time string // UTC time from block header
-	Epoch      uint64 // Epoch time
-	In_Pool    bool   // whether tx was in pool
-	Hash       string // hash for hash
-	PrefixHash string // prefix hash
-	Version    int    // version of tx
-	Size       string // size of tx in KB
-	Sizeuint64 uint64 // size of tx in bytes
-	Fee        string // fee in TX
-	Feeuint64  uint64 // fee in atomic units
-	In         int    // inputs counts
-	Out        int    // outputs counts
-	Amount     string
-	CoinBase   bool     // is tx coin base
-	Extra      string   // extra within tx
-	Keyimages  []string // key images within tx
-	OutAddress []string // contains output secret key
-	OutOffset  []uint64 // contains index offsets
-	Type       string   // ringct or ruffct ( bulletproof)
-	Ring_size  int
+	Hex          string // raw tx
+	Height       string // height at which tx was mined
+	Depth        int64
+	Timestamp    uint64 // timestamp
+	Age          string //  time diff from current time
+	Block_time   string // UTC time from block header
+	Epoch        uint64 // Epoch time
+	In_Pool      bool   // whether tx was in pool
+	Hash         string // hash for hash
+	PrefixHash   string // prefix hash
+	Version      int    // version of tx
+	Size         string // size of tx in KB
+	Sizeuint64   uint64 // size of tx in bytes
+	Fee          string // fee in TX
+	Feeuint64    uint64 // fee in atomic units
+	In           int    // inputs counts
+	Out          int    // outputs counts
+	Amount       string
+	CoinBase     bool     // is tx coin base
+	Extra        string   // extra within tx
+	Keyimages    []string // key images within tx
+	OutAddress   []string // contains output secret key
+	OutOffset    []uint64 // contains index offsets
+	Type         string   // ringct or ruffct ( bulletproof)
+	ValidBlock   string   // the tx is valid in which block
+	InvalidBlock []string // the tx is invalid in which block
+	Skipped      bool     // this is only valid, when a block is being listed
+	Ring_size    int
+	Ring         [][]globals.TX_Output_Data
+
+	TXpublickey string
+	PayID32     string // 32 byte payment ID
+	PayID8      string // 8 byte encrypted payment ID
+
+
+	Proof_address string // address agains which which the proving ran
+	Proof_index  int64  // proof satisfied for which index
+	Proof_amount string // decoded amount 
+	Proof_PayID8 string // decrypted 8 byte payment id
+	Proof_error  string // error if any while decoding proof
+
 }
 
 // any information for block which needs to be printed
 type block_info struct {
 	Major_Version uint64
 	Minor_Version uint64
-	Height        uint64
-	Depth         uint64
+	Height        int64
+	TopoHeight    int64
+	Depth         int64
 	Timestamp     uint64
 	Hash          string
-	Prev_Hash     string
+	Tips          []string
 	Nonce         uint64
 	Fees          string
 	Reward        string
@@ -186,6 +207,7 @@ type block_info struct {
 	Mtx           txinfo
 	Txs           []txinfo
 	Orphan_Status bool
+	SyncBlock     bool // whether the block is sync block
 	Tx_Count      int
 }
 
@@ -193,7 +215,7 @@ type block_info struct {
 // if hash is less than 64 bytes then it is considered a height parameter
 func load_block_from_rpc(info *block_info, block_hash string, recursive bool) (err error) {
 	var bl block.Block
-	var bresult rpcserver.GetBlock_Result
+	var bresult structures.GetBlock_Result
 
 	var block_height int
 	var block_bin []byte
@@ -232,6 +254,7 @@ func load_block_from_rpc(info *block_info, block_hash string, recursive bool) (e
 	}
 
 	// fmt.Printf("block %d  %+v\n",i, bresult)
+	info.TopoHeight = bresult.Block_Header.TopoHeight
 	info.Height = bresult.Block_Header.Height
 	info.Depth = bresult.Block_Header.Depth
 
@@ -242,21 +265,31 @@ func load_block_from_rpc(info *block_info, block_hash string, recursive bool) (e
 	info.Outputs = fmt.Sprintf("%.03f", float32(bresult.Block_Header.Reward)/1000000000000.0)
 	info.Size = "N/A"
 	info.Hash = bresult.Block_Header.Hash
-	info.Prev_Hash = bresult.Block_Header.Prev_Hash
+	//info.Prev_Hash = bresult.Block_Header.Prev_Hash
+	info.Tips = bresult.Block_Header.Tips
 	info.Orphan_Status = bresult.Block_Header.Orphan_Status
+	info.SyncBlock = bresult.Block_Header.SyncBlock
 	info.Nonce = bresult.Block_Header.Nonce
 	info.Major_Version = bresult.Block_Header.Major_Version
 	info.Minor_Version = bresult.Block_Header.Minor_Version
 	info.Reward = fmt.Sprintf("%.03f", float32(bresult.Block_Header.Reward)/1000000000000.0)
 
 	block_bin, _ = hex.DecodeString(bresult.Blob)
+
+	//log.Infof("block %+v bresult %+v ", bl, bresult)
+
 	bl.Deserialize(block_bin)
 
 	if recursive {
 		// fill in miner tx info
 
-		err = load_tx_from_rpc(&info.Mtx, bl.Miner_tx.GetHash().String()) //TODO handle error
+		err = load_tx_from_rpc(&info.Mtx, bl.Miner_TX.GetHash().String()) //TODO handle error
 
+		// miner tx reward is calculated on runtime due to client protocol reasons in dero atlantis
+		// feed what is calculated by the daemon
+		info.Mtx.Amount = fmt.Sprintf("%.012f", float64(bresult.Block_Header.Reward)/1000000000000)
+
+		log.Infof("loading tx from rpc %s  %s", bl.Miner_TX.GetHash().String(), err)
 		info.Tx_Count = len(bl.Tx_hashes)
 
 		fees := uint64(0)
@@ -265,6 +298,9 @@ func load_block_from_rpc(info *block_info, block_hash string, recursive bool) (e
 		for i := 0; i < len(bl.Tx_hashes); i++ {
 			var tx txinfo
 			err = load_tx_from_rpc(&tx, bl.Tx_hashes[i].String()) //TODO handle error
+			if tx.ValidBlock != bresult.Block_Header.Hash {       // track skipped status
+				tx.Skipped = true
+			}
 			info.Txs = append(info.Txs, tx)
 			fees += tx.Feeuint64
 			size += tx.Sizeuint64
@@ -289,6 +325,22 @@ func load_tx_info_from_tx(info *txinfo, tx *transaction.Transaction) (err error)
 	info.In = len(tx.Vin)
 	info.Out = len(tx.Vout)
 
+	if tx.Parse_Extra() {
+
+		// store public key if present
+		if _, ok := tx.Extra_map[transaction.TX_PUBLIC_KEY]; ok {
+			info.TXpublickey = tx.Extra_map[transaction.TX_PUBLIC_KEY].(crypto.Key).String()
+		}
+
+		// store payment IDs if present
+		if _, ok := tx.PaymentID_map[transaction.TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID]; ok {
+			info.PayID8 = fmt.Sprintf("%x", tx.PaymentID_map[transaction.TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID].([]byte))
+		} else if _, ok := tx.PaymentID_map[transaction.TX_EXTRA_NONCE_PAYMENT_ID]; ok {
+			info.PayID32 = fmt.Sprintf("%x", tx.PaymentID_map[transaction.TX_EXTRA_NONCE_PAYMENT_ID].([]byte))
+		}
+
+	}
+
 	if !tx.IsCoinbase() {
 		info.Fee = fmt.Sprintf("%.012f", float64(tx.RctSignature.Get_TX_Fee())/1000000000000)
 		info.Feeuint64 = tx.RctSignature.Get_TX_Fee()
@@ -301,7 +353,9 @@ func load_tx_info_from_tx(info *txinfo, tx *transaction.Transaction) (err error)
 	} else {
 		info.CoinBase = true
 		info.In = 0
-		info.Amount = fmt.Sprintf("%.012f", float64(tx.Vout[0].Amount)/1000000000000)
+
+		//if info.
+		//info.Amount = fmt.Sprintf("%.012f", float64(tx.Vout[0].Amount)/1000000000000)
 	}
 
 	for i := 0; i < len(tx.Vout); i++ {
@@ -321,6 +375,10 @@ func load_tx_info_from_tx(info *txinfo, tx *transaction.Transaction) (err error)
 		info.Type = "RingCT/1 MG"
 	case 2:
 		info.Type = "RingCT/2 Simple"
+	case 3:
+		info.Type = "RingCT/3 Full bulletproof"
+	case 4:
+		info.Type = "RingCT/4 Simple Bulletproof"
 	}
 
 	if !info.In_Pool { // find the age of block and other meta
@@ -345,8 +403,8 @@ func load_tx_info_from_tx(info *txinfo, tx *transaction.Transaction) (err error)
 
 // load and setup txinfo from rpc
 func load_tx_from_rpc(info *txinfo, txhash string) (err error) {
-	var tx_params rpcserver.GetTransaction_Params
-	var tx_result rpcserver.GetTransaction_Result
+	var tx_params structures.GetTransaction_Params
+	var tx_result structures.GetTransaction_Result
 
 	//fmt.Printf("Requesting tx data %s", txhash);
 	tx_params.Tx_Hashes = append(tx_params.Tx_Hashes, txhash)
@@ -354,17 +412,18 @@ func load_tx_from_rpc(info *txinfo, txhash string) (err error) {
 	request_bytes, err := json.Marshal(&tx_params)
 	response, err := http.Post("http://"+endpoint+"/gettransactions", "application/json", bytes.NewBuffer(request_bytes))
 	if err != nil {
-		//fmt.Printf("err while requesting tx err %s",err);
+		fmt.Printf("err while requesting tx err %s\n", err)
 		return
 	}
 	buf, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		// fmt.Printf("err while reading reponse body err %s",err);
+		fmt.Printf("err while reading reponse body err %s\n", err)
 		return
 	}
 
 	err = json.Unmarshal(buf, &tx_result)
 	if err != nil {
+		fmt.Printf("err while parsing reponse body err %s\n", err)
 		return
 	}
 
@@ -380,6 +439,8 @@ func load_tx_from_rpc(info *txinfo, txhash string) (err error) {
 		return
 	}
 
+	info.Hex =  tx_result.Txs_as_hex[0]
+
 	tx_bin, _ := hex.DecodeString(tx_result.Txs_as_hex[0])
 	tx.DeserializeHeader(tx_bin)
 
@@ -393,6 +454,15 @@ func load_tx_from_rpc(info *txinfo, txhash string) (err error) {
 	for x := range tx_result.Txs[0].Output_Indices {
 		info.OutOffset = append(info.OutOffset, tx_result.Txs[0].Output_Indices[x])
 	}
+
+	if tx.IsCoinbase() { // fill miner tx reward from what the chain tells us
+		info.Amount = fmt.Sprintf("%.012f", float64(uint64(tx_result.Txs[0].Reward))/1000000000000)
+	}
+
+	info.ValidBlock = tx_result.Txs[0].ValidBlock
+	info.InvalidBlock = tx_result.Txs[0].InvalidBlock
+
+	info.Ring = tx_result.Txs[0].Ring
 
 	//fmt.Printf("tx_result %+v\n",tx_result.Txs)
 
@@ -410,11 +480,11 @@ func block_handler(w http.ResponseWriter, r *http.Request) {
 	// execute template now
 	data := map[string]interface{}{}
 
-	data["title"] = "DERO BlockChain Explorer (Golang)"
+	data["title"] = "DERO Atlantis BlockChain Explorer(v1)"
 	data["servertime"] = time.Now().UTC().Format("2006-01-02 15:04:05")
 	data["block"] = blinfo
 
-	t, err := template.New("foo").Parse(header_template + block_template + footer_template)
+	t, err := template.New("foo").Parse(header_template + block_template + footer_template + notfound_page_template)
 
 	err = t.ExecuteTemplate(w, "block", data)
 	if err != nil {
@@ -437,14 +507,53 @@ func tx_handler(w http.ResponseWriter, r *http.Request) {
 	err := load_tx_from_rpc(&info, txhash.String()) //TODO handle error
 	_ = err
 
+	// check whether user requested proof
+
+	tx_secret_key := r.PostFormValue("txprvkey")
+	daddress :=  r.PostFormValue("deroaddress")
+	raw_tx_data := r.PostFormValue("raw_tx_data")
+
+	if raw_tx_data !=  "" { // gives ability to prove transactions not in the blockchain
+		info.Hex = raw_tx_data
+	}
+
+	log.Debugf("tx key %s address %s  tx %s", tx_secret_key, daddress, tx_hex)
+	
+	if tx_secret_key != ""  && daddress != "" {
+
+	// there may be more than 1 amounts, only first one is shown
+	indexes, amounts, payids, err := proof.Prove(tx_secret_key,daddress,info.Hex)
+
+	_ = indexes
+	_ = amounts
+	if err == nil { //&& len(amounts) > 0 && len(indexes) > 0{
+		log.Debugf("Successfully proved transaction %s len(payids)",tx_hex, len(payids))
+		info.Proof_index = int64(indexes[0])
+		info.Proof_address =  daddress
+		info.Proof_amount = globals.FormatMoney12(amounts[0])
+		if len(payids) >=1 {
+			info.Proof_PayID8 = fmt.Sprintf("%x", payids[0]) // decrypted payment ID
+		}
+	}else{
+		log.Debugf("err while proving %s",err)
+		if err != nil {
+		info.Proof_error = err.Error()
+	}
+
+	}
+}
+
+
+
+
 	// execute template now
 	data := map[string]interface{}{}
 
-	data["title"] = "DERO BlockChain Explorer (Golang)"
+	data["title"] = "DERO Atlantis BlockChain Explorer(v1)"
 	data["servertime"] = time.Now().UTC().Format("2006-01-02 15:04:05")
 	data["info"] = info
-	
-	t, err := template.New("foo").Parse(header_template + tx_template + footer_template)
+
+	t, err := template.New("foo").Parse(header_template + tx_template + footer_template + notfound_page_template)
 
 	err = t.ExecuteTemplate(w, "tx", data)
 	if err != nil {
@@ -466,7 +575,7 @@ func pool_handler(w http.ResponseWriter, r *http.Request) {
 // pos is descending order
 func fill_tx_structure(pos int, size_in_blocks int) (data []block_info) {
 
-	for i := pos; i > (pos-11) && i >= 0; i-- { // query blocks by height
+	for i := pos; i > (pos-size_in_blocks) && i >= 0; i-- { // query blocks by topo height
 		var blinfo block_info
 		err := load_block_from_rpc(&blinfo, fmt.Sprintf("%d", i), true)
 		if err == nil {
@@ -478,12 +587,12 @@ func fill_tx_structure(pos int, size_in_blocks int) (data []block_info) {
 
 func show_page(w http.ResponseWriter, page int) {
 	data := map[string]interface{}{}
-	var info rpcserver.GetInfo_Result
+	var info structures.GetInfo_Result
 
-	data["title"] = "DERO BlockChain Explorer (Golang)"
+	data["title"] = "DERO Atlantis BlockChain Explorer(v1)"
 	data["servertime"] = time.Now().UTC().Format("2006-01-02 15:04:05")
 
-	t, err := template.New("foo").Parse(header_template + txpool_template + main_template + paging_template + footer_template)
+	t, err := template.New("foo").Parse(header_template + txpool_template + main_template + paging_template + footer_template + notfound_page_template)
 
 	// collect all the data afresh
 	// execute rpc to service
@@ -501,29 +610,48 @@ func show_page(w http.ResponseWriter, page int) {
 	//fmt.Printf("get info %+v", info)
 
 	data["Network_Difficulty"] = info.Difficulty
-	data["hash_rate"] = fmt.Sprintf("%.03f", float32(info.Difficulty/1000000)/float32(info.Target))
+	data["hash_rate"] = fmt.Sprintf("%.03f", float32(info.Difficulty)/float32(info.Target*1000))
 	data["txpool_size"] = info.Tx_pool_size
-	data["testnet"] =  info.Testnet
+	data["testnet"] = info.Testnet
+	data["averageblocktime50"] = info.AverageBlockTime50
+	data["fee_per_kb"] = float64(info.Dynamic_fee_per_kb) / 1000000000000
+	data["median_block_size"] = fmt.Sprintf("%.02f", float32(info.Median_Block_Size)/1024)
+	data["total_supply"] = info.Total_Supply
 
-	if int(info.Height) < page*11 { // use requested invalid page, give page 0
-		page = 0
+	if page == 0  { // use requested invalid page, give current page
+		page = int(info.TopoHeight)/10
 	}
 
-	data["previous_page"] = 0
-	if page > 0 {
-		data["previous_page"] = page - 1
+	data["previous_page"] = page - 1
+	if page <= 1 {
+		data["previous_page"] = 1
 	}
 	data["current_page"] = page
-	data["total_page"] = int(info.Height) / 11
+	if (int(info.TopoHeight) % 10)  == 0 {
+		data["total_page"] = (int(info.TopoHeight) / 10)  
+	}else{
+		data["total_page"] = (int(info.TopoHeight) / 10)  
+	}
+	
 
 	data["next_page"] = page + 1
-	if (page + 1) > int(info.Height)/11 {
+	if (page + 1) > data["total_page"].(int) {
 		data["next_page"] = page
 	}
 
 	fill_tx_pool_info(data, 25)
 
-	data["block_array"] = fill_tx_structure(int(info.Height)-(page*11), 11)
+	if page == 1{ // page 1 has 11 blocks, it does not show genesis block
+		data["block_array"] = fill_tx_structure(int(page*10), 12)
+		}else{
+			if int(info.TopoHeight)-int(page*10) > 10{
+				data["block_array"] = fill_tx_structure(int(page*10), 10)	
+			}else{
+				data["block_array"] = fill_tx_structure(int(info.TopoHeight), int(info.TopoHeight)-int(page*10))	
+			}
+			
+		}
+	
 
 	err = t.ExecuteTemplate(w, "main", data)
 	if err != nil {
@@ -539,13 +667,12 @@ exit_error:
 
 func txpool_handler(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{}
-	var info rpcserver.GetInfo_Result
+	var info structures.GetInfo_Result
 
-	data["title"] = "DERO BlockChain Explorer (Golang)"
+	data["title"] = "DERO Atlantis BlockChain Explorer(v1)"
 	data["servertime"] = time.Now().UTC().Format("2006-01-02 15:04:05")
-        
 
-	t, err := template.New("foo").Parse(header_template + txpool_template + main_template + paging_template + footer_template + txpool_page_template)
+	t, err := template.New("foo").Parse(header_template + txpool_template + main_template + paging_template + footer_template + txpool_page_template + notfound_page_template)
 
 	// collect all the data afresh
 	// execute rpc to service
@@ -565,7 +692,11 @@ func txpool_handler(w http.ResponseWriter, r *http.Request) {
 	data["Network_Difficulty"] = info.Difficulty
 	data["hash_rate"] = fmt.Sprintf("%.03f", float32(info.Difficulty/1000000)/float32(info.Target))
 	data["txpool_size"] = info.Tx_pool_size
-	data["testnet"] =  info.Testnet
+	data["testnet"] = info.Testnet
+	data["fee_per_kb"] = float64(info.Dynamic_fee_per_kb) / 1000000000000
+	data["median_block_size"] = fmt.Sprintf("%.02f", float32(info.Median_Block_Size)/1024)
+	data["total_supply"] = info.Total_Supply
+	data["averageblocktime50"] = info.AverageBlockTime50
 
 	fill_tx_pool_info(data, 500) // show only 500 txs
 
@@ -598,6 +729,8 @@ func root_handler(w http.ResponseWriter, r *http.Request) {
 
 // search handler, finds the items using rpc bruteforce
 func search_handler(w http.ResponseWriter, r *http.Request) {
+	var info structures.GetInfo_Result
+
 	log.Debugf("Showing search page")
 
 	values, ok := r.URL.Query()["value"]
@@ -607,10 +740,39 @@ func search_handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
+
 	// Query()["key"] will return an array of items,
 	// we only want the single item.
-	value := values[0]
+	value := strings.TrimSpace(values[0])
+	good := false
 
+	response, err := rpcClient.Call("get_info")
+	if err != nil {
+		goto exit_error
+	}
+	err = response.GetObject(&info)
+	if err != nil {
+		goto exit_error
+	}
+
+	if len(value) != 64 {
+		if s, err := strconv.ParseInt(value, 10, 64); err == nil && s >= 0 && s <= info.TopoHeight{
+					good = true
+				}
+	}else{ // check whether the string can be hex decoded
+		t, err := hex.DecodeString(value)
+		if err != nil || len(t) != 32{
+
+			}else{
+				good = true
+			}
+	}
+
+
+	// value should be either 64 hex chars or a topoheight which should be less than current topoheight
+
+if good{
 	// check whether the page is block or tx or height
 	var blinfo block_info
 	var tx txinfo
@@ -628,7 +790,45 @@ func search_handler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+}
 
+	{ // show error page
+		data := map[string]interface{}{}
+	var info structures.GetInfo_Result
+
+	data["title"] = "DERO Atlantis BlockChain Explorer(v1)"
+	data["servertime"] = time.Now().UTC().Format("2006-01-02 15:04:05")
+
+	t, err := template.New("foo").Parse(header_template + txpool_template + main_template + paging_template + footer_template + txpool_page_template + notfound_page_template)
+
+	// collect all the data afresh
+	// execute rpc to service
+	
+
+	err = response.GetObject(&info)
+	if err != nil {
+		goto exit_error
+	}
+
+	//fmt.Printf("get info %+v", info)
+
+	data["Network_Difficulty"] = info.Difficulty
+	data["hash_rate"] = fmt.Sprintf("%.03f", float32(info.Difficulty/1000000)/float32(info.Target))
+	data["txpool_size"] = info.Tx_pool_size
+	data["testnet"] = info.Testnet
+	data["fee_per_kb"] = float64(info.Dynamic_fee_per_kb) / 1000000000000
+	data["median_block_size"] = fmt.Sprintf("%.02f", float32(info.Median_Block_Size)/1024)
+	data["total_supply"] = info.Total_Supply
+	data["averageblocktime50"] = info.AverageBlockTime50
+
+	err = t.ExecuteTemplate(w, "notfound_page", data)
+	if err == nil {
+		return
+
+	}
+
+	}
+exit_error:
 	show_page(w, 0)
 	return
 
@@ -638,7 +838,7 @@ func search_handler(w http.ResponseWriter, r *http.Request) {
 func fill_tx_pool_info(data map[string]interface{}, max_count int) error {
 
 	var txs []txinfo
-	var txpool rpcserver.GetTxPool_Result
+	var txpool structures.GetTxPool_Result
 
 	data["mempool"] = txs // initialize with empty data
 	// collect all the data afresh

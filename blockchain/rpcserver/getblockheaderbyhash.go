@@ -28,21 +28,12 @@ import "github.com/intel-go/fastjson"
 import "github.com/osamingo/jsonrpc"
 
 import "github.com/deroproject/derosuite/crypto"
-import "github.com/deroproject/derosuite/blockchain"
+import "github.com/deroproject/derosuite/structures"
 
-type (
-	GetBlockHeaderByHash_Handler struct{}
-	GetBlockHeaderByHash_Params  struct {
-		Hash string `json:"hash"`
-	} // no params
-	GetBlockHeaderByHash_Result struct {
-		Block_Header blockchain.BlockHeader_Print `json:"block_header"`
-		Status       string                       `json:"status"`
-	}
-)
+type GetBlockHeaderByHash_Handler struct{}
 
 func (h GetBlockHeaderByHash_Handler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-	var p GetBlockHeaderByHash_Params
+	var p structures.GetBlockHeaderByHash_Params
 	if err := jsonrpc.Unmarshal(params, &p); err != nil {
 		return nil, err
 	}
@@ -54,7 +45,7 @@ func (h GetBlockHeaderByHash_Handler) ServeJSONRPC(c context.Context, params *fa
 		return nil, jsonrpc.ErrInvalidParams()
 	}
 
-	return GetBlockHeaderByHash_Result{ // return success
+	return structures.GetBlockHeaderByHash_Result{ // return success
 		Block_Header: block_header,
 		Status:       "OK",
 	}, nil

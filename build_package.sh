@@ -21,10 +21,13 @@ PLATFORMS="$PLATFORMS netbsd/amd64" # amd64 only as of go1.6
 PLATFORMS="$PLATFORMS openbsd/amd64" # amd64 only as of go1.6
 PLATFORMS="$PLATFORMS dragonfly/amd64" # amd64 only as of go1.5
 #PLATFORMS="$PLATFORMS plan9/amd64 plan9/386" # as of go1.4, is it common enough ??
-PLATFORMS="$PLATFORMS solaris/amd64" # as of go1.3
+# solaris disabled due to badger  error below
+#vendor/github.com/dgraph-io/badger/y/mmap_unix.go:57:30: undefined: syscall.SYS_MADVISE
+#PLATFORMS="$PLATFORMS solaris/amd64" # as of go1.3
 
 
-PLATFORMS_ARM="linux freebsd netbsd"
+#PLATFORMS_ARM="linux freebsd netbsd"
+PLATFORMS_ARM="linux freebsd"
 
 type setopt >/dev/null 2>&1
 

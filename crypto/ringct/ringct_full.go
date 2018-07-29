@@ -17,6 +17,7 @@
 package ringct
 
 import "fmt"
+import "github.com/deroproject/derosuite/crypto"
 
 /* this files handles the generation and verification in ringct full */
 
@@ -48,7 +49,7 @@ func (r *RctSig) VerifyRCTFull_Core() (result bool) {
 	       return
 	   }*/
 
-	pre_mlsag_hash := Key(Get_pre_mlsag_hash(r))
+	pre_mlsag_hash := crypto.Key(Get_pre_mlsag_hash(r))
 	txfeekey := Commitment_From_Amount(r.txFee)
 
 	cols := len(r.MixRing)
@@ -65,9 +66,9 @@ func (r *RctSig) VerifyRCTFull_Core() (result bool) {
 	// 4  4
 	// 5  5   // yes there is an extra row
 
-	M := make([][]Key, cols)
+	M := make([][]crypto.Key, cols)
 	for i := 0; i < (cols); i++ {
-		M[i] = make([]Key, rows+1, rows+1)
+		M[i] = make([]crypto.Key, rows+1, rows+1)
 		for j := 0; j < (rows + 1); j++ { // yes there is an extra column
 			M[i][j] = Identity // fill it with identity
 			// fmt.Printf("M[%d][%d] %s\n",i,j, M[i][j])
@@ -82,18 +83,18 @@ func (r *RctSig) VerifyRCTFull_Core() (result bool) {
 			M[i][j] = r.MixRing[i][j].Destination
 
 			//    fmt.Printf("f M[i][rows] == %s\n",M[i][rows]);
-			AddKeys(&M[i][rows], &M[i][rows], &r.MixRing[i][j].Mask) //add Ci in last row
+			crypto.AddKeys(&M[i][rows], &M[i][rows], &r.MixRing[i][j].Mask) //add Ci in last row
 			//    fmt.Printf("f M[i][rows] =  %s\n",M[i][rows]);
 		}
 	}
 
 	for i := 0; i < cols; i++ {
 		for j := 0; j < len(r.OutPk); j++ {
-			SubKeys(&M[i][rows], &M[i][rows], &r.OutPk[j].Mask) //subtract output Ci's in last row
+			crypto.SubKeys(&M[i][rows], &M[i][rows], &r.OutPk[j].Mask) //subtract output Ci's in last row
 			//    fmt.Printf("s i %d j %d  %s \n",i,j,M[i][rows]);
 		}
 		//subtract txn fee output in last row
-		SubKeys(&M[i][rows], &M[i][rows], &txfeekey)
+		crypto.SubKeys(&M[i][rows], &M[i][rows], &txfeekey)
 
 		//  fmt.Printf("s M[i][rows] = %s\n",M[i][rows])
 	}

@@ -34,7 +34,21 @@ var base58Lookup = map[string]int{
 }
 var bigBase = big.NewInt(58)
 
-func encodeChunk(raw []byte, padding int) (result string) {
+// chunk are max 8 bytes long refer https://cryptonote.org/cns/cns007.txt for more documentation
+var bytes_to_base58_length_mapping = []int{
+	0,  // 0 bytes of input, 0 byte of base58 output
+	2,  // 1 byte of input, 2 bytes of base58 output
+	3,  // 2 byte of input, 3 bytes of base58 output
+	5,  // 3 byte of input, 5 bytes of base58 output
+	6,  // 4 byte of input, 6 bytes of base58 output
+	7,  // 5 byte of input, 7 bytes of base58 output
+	9,  // 6 byte of input, 9 bytes of base58 output
+	10, // 7 byte of input, 10 bytes of base58 output
+	11, // 8 byte of input, 11 bytes of base58 output
+}
+
+// encode 8 byte chunk with necessary padding
+func encodeChunk(raw []byte) (result string) {
 	remainder := new(big.Int)
 	remainder.SetBytes(raw)
 	bigZero := new(big.Int)
@@ -43,50 +57,71 @@ func encodeChunk(raw []byte, padding int) (result string) {
 		remainder.DivMod(remainder, bigBase, current)
 		result = string(BASE58[current.Int64()]) + result
 	}
-	if len(result) < padding {
-		result = strings.Repeat("1", (padding-len(result))) + result
+
+	for i := range bytes_to_base58_length_mapping {
+		if i == len(raw) {
+			if len(result) < bytes_to_base58_length_mapping[i] {
+				result = strings.Repeat("1", (bytes_to_base58_length_mapping[i]-len(result))) + result
+			}
+			return result
+		}
 	}
-	return
+
+	return // we never reach here, if inputs are well-formed <= 8 bytes
 }
 
+// decode max 11 char base58 to 8 byte chunk as necessary
+// proper error handling is not being done
 func decodeChunk(encoded string) (result []byte) {
 	bigResult := big.NewInt(0)
 	currentMultiplier := big.NewInt(1)
 	tmp := new(big.Int)
 	for i := len(encoded) - 1; i >= 0; i-- {
+		// make sure decoded character is a base58 char , otherwise return
+		if strings.IndexAny(BASE58, string(encoded[i])) < 0 {
+			return
+		}
 		tmp.SetInt64(int64(base58Lookup[string(encoded[i])]))
 		tmp.Mul(currentMultiplier, tmp)
 		bigResult.Add(bigResult, tmp)
 		currentMultiplier.Mul(currentMultiplier, bigBase)
 	}
-	result = bigResult.Bytes()
-	return
+
+	for i := range bytes_to_base58_length_mapping {
+		if bytes_to_base58_length_mapping[i] == len(encoded) {
+			result = append([]byte{0, 0, 0, 0, 0, 0, 0, 0, 0}, bigResult.Bytes()...)
+			return result[len(result)-i:] // return necessary bytes, initial zero appended  as per mapping
+		}
+	}
+
+	return // we never reach here, if inputs are well-formed <= 11 chars
 }
 
+// split into 8 byte chunks, process and merge back result
 func EncodeDeroBase58(data ...[]byte) (result string) {
 	var combined []byte
 	for _, item := range data {
 		combined = append(combined, item...)
 	}
-	length := len(combined)
-	rounds := length / 8
-	for i := 0; i < rounds; i++ {
-		result += encodeChunk(combined[i*8:(i+1)*8], 11)
+
+	fullblocks := len(combined) / 8
+	for i := 0; i < fullblocks; i++ { // process any chunks in 8 byte form
+		result += encodeChunk(combined[i*8 : (i+1)*8])
 	}
-	if length%8 > 0 {
-		result += encodeChunk(combined[rounds*8:], 7)
+	if len(combined)%8 > 0 { // process last partial block
+		result += encodeChunk(combined[fullblocks*8:])
 	}
 	return
 }
 
+// split into 11 char chunks, process and merge back result
 func DecodeDeroBase58(data string) (result []byte) {
-	length := len(data)
-	rounds := length / 11
-	for i := 0; i < rounds; i++ {
+	fullblocks := len(data) / 11
+	for i := 0; i < fullblocks; i++ { // process partial block
 		result = append(result, decodeChunk(data[i*11:(i+1)*11])...)
 	}
-	if length%11 > 0 {
-		result = append(result, decodeChunk(data[rounds*11:])...)
+	if len(data)%11 > 0 { // process last partial block
+		result = append(result, decodeChunk(data[fullblocks*11:])...)
 	}
 	return
 }

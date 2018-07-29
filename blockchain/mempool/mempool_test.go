@@ -69,9 +69,9 @@ func Test_mempool_Full_block_72_2c4738d3856e8e3e8f9fc4818a9197d4911af3010e067ec5
 		t.Errorf("TX should already be in pool")
 	}
 
-	if len(pool.Mempool_List_TX()) != 1 {
+	/*if len(pool.Mempool_List_TX()) != 1 {
 		t.Errorf("Pool should  have 1 tx")
-	}
+	}*/
 	list_tx := pool.Mempool_List_TX()
 
 	if len(list_tx) != 1 || list_tx[0] != tx.GetHash() {
@@ -103,7 +103,14 @@ func Test_mempool_Full_block_72_2c4738d3856e8e3e8f9fc4818a9197d4911af3010e067ec5
 	}
 
 	// pool must have  1 key_image
-	if len(pool.key_images) != 1 {
+	
+	key_image_count := 0
+	pool.key_images.Range(func(k, value interface{}) bool {
+		key_image_count++
+		return true
+	})
+        
+	if key_image_count != 1 {
 		t.Errorf("Pool doesnot have necessary key image")
 	}
 
@@ -112,7 +119,12 @@ func Test_mempool_Full_block_72_2c4738d3856e8e3e8f9fc4818a9197d4911af3010e067ec5
 	}
 
 	// pool must have  1 key_image
-	if len(pool.key_images) != 1 {
+	key_image_count = 0
+	pool.key_images.Range(func(k, value interface{}) bool {
+		key_image_count++
+		return true
+	})
+	if key_image_count != 1 {
 		t.Errorf("Pool must have necessary key image")
 	}
 
@@ -121,7 +133,12 @@ func Test_mempool_Full_block_72_2c4738d3856e8e3e8f9fc4818a9197d4911af3010e067ec5
 		t.Errorf("existing TX cannot be deleted\n")
 	}
 
-	if len(pool.key_images) != 0 {
+	key_image_count = 0
+	pool.key_images.Range(func(k, value interface{}) bool {
+		key_image_count++
+		return true
+	})
+	if key_image_count != 0 {
 		t.Errorf("Pool should not have any key image")
 	}
 

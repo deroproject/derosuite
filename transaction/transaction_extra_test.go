@@ -77,8 +77,119 @@ func Test_Normal_PaymentID_parsing(t *testing.T) {
 		expected_payment_id := "84f42865552b22e95cf5c9b3cb2a2b5d52f7114b62a5bcf218fd2a5a41105f80"
 
 		if fmt.Sprintf("%x", tx.PaymentID_map[TX_EXTRA_NONCE_PAYMENT_ID]) != expected_payment_id {
-			t.Errorf("mainnet fbb6bcc17c8095a22b27de99d1642eea2d84d0962ed9a4d09c68843fc19b6cf4  extra parsing failed, payment id mismatch\n")
+			t.Fatalf("mainnet fbb6bcc17c8095a22b27de99d1642eea2d84d0962ed9a4d09c68843fc19b6cf4  extra parsing failed, payment id mismatch\n")
 		}
+	}
+
+}
+
+// manualy place edge cases, to see whether incomplete processing can be detected
+func Test_Edge_Case(t *testing.T) {
+
+	tests := []struct {
+		name     string
+		extrahex string
+		expected bool
+	}{
+
+		{
+			name:     "padding header only",
+			extrahex: "00", // empty padding marker
+			expected: false,
+		},
+		{
+			name:     "padding data missing",
+			extrahex: "0005", // padding data missing
+			expected: false,
+		},
+		{
+			name:     "public  data missing",
+			extrahex: "0105", // public key data missing
+			expected: false,
+		},
+		{
+			name:     "extra nonce  header only",
+			extrahex: "02", // only header, even length is missing
+			expected: false,
+		},
+		{
+			name:     "extra nonce  data missing",
+			extrahex: "0205", // public key data missing
+			expected: false,
+		},
+		{
+			name:     "extra nonce invalid payment ID",
+			extrahex: "020101", // public key data missing
+			expected: true,
+		},
+		{
+			name:     "extra nonce valid 32 byte payment ID",
+			extrahex: "02210000112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", // public key data missing
+			expected: true,
+		},
+		{
+			name:     "extra nonce unknown byte payment ID type",
+			extrahex: "0221ff00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff", // public key data missing
+			expected: false,
+		},
+		{
+			name:     "extra nonce valid 8 byte encrypted payment ID",
+			extrahex: "0209010011223344556677",
+			expected: true,
+		},
+		{
+			name:     "extra nonce unknown byte payment ID type",
+			extrahex: "0209020011223344556677",
+			expected: false,
+		},
+
+		{
+			name:     "unknown tag",
+			extrahex: "ff", // unknown tag
+			expected: false,
+		},
+	}
+
+	for _, test := range tests {
+		var tx Transaction
+		var err error
+
+		tx.Extra, err = hex.DecodeString(test.extrahex)
+		if err != nil {
+			t.Fatalf("Tx hex could not be hex decoded")
+		}
+
+		if tx.Parse_Extra() != test.expected {
+			t.Fatalf("Extra parsing test %s failed", test.name)
+		}
+	}
+
+}
+
+// manualy place edge cases, to see whether incomplete processing can be detected
+func Test_Edge_Case_serialisation(t *testing.T) {
+
+	var tx Transaction
+	tx.Extra_map = map[EXTRA_TAG]interface{}{}
+	tx.PaymentID_map = map[EXTRA_TAG]interface{}{}
+
+	// make sure tx
+	if len(tx.Serialize_Extra()) != 0 {
+		t.Fatalf("Cannot serialize without key")
+	}
+	expected_key := crypto.HexToKey("8d92d0909fdfc65e676682a2683154f17b1b0061f6b927f073c760c78e8211f8")
+	tx.Extra_map[TX_PUBLIC_KEY] = expected_key
+
+	tx.Extra_map[TX_EXTRA_NONCE] = make([]byte, 300, 300)
+
+	if fmt.Sprintf("%x", tx.Serialize_Extra()) != "018d92d0909fdfc65e676682a2683154f17b1b0061f6b927f073c760c78e8211f802fe0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" {
+		t.Fatalf("Extra Nonce Could not be trimmed and serialized properly")
+	}
+
+	tx.PaymentID_map[TX_EXTRA_NONCE_ENCRYPTED_PAYMENT_ID] = make([]byte, 8, 8)
+
+	if fmt.Sprintf("%x", tx.Serialize_Extra()) != "018d92d0909fdfc65e676682a2683154f17b1b0061f6b927f073c760c78e8211f80209010000000000000000" {
+		t.Fatalf("Extra Payment ID could not be serialized correctly")
 	}
 
 }

@@ -48,16 +48,16 @@ func Test_Crypto(t *testing.T) {
 		case "check_scalar":
 			scalar := HexToKey(words[1])
 			expected := "true" == words[2]
-			actual := ScValid(&scalar) == true
+			actual := ScValid(&scalar)
 			if actual != expected {
 				t.Fatalf("Failed %s: Expected %v, got %v.", words[0], expected, actual)
 			}
 		case "check_key":
 			public_key := HexToKey(words[1])
 			expected := "true" == words[2]
-			actual := public_key.Public_Key_Valid() == true
+			actual := public_key.Public_Key_Valid()
 			if actual != expected {
-				t.Logf("Failed %s: Expected %v, got %v %s", words[0], expected, actual, public_key)
+				t.Fatalf("Failed %s: Expected %v, got %v %s", words[0], expected, actual, public_key)
 			}
 
 		case "random_scalar": // ignore them
@@ -109,7 +109,7 @@ func Test_Crypto(t *testing.T) {
 				actual := KeyDerivation(&public_key, &private_key)
 
 				if expected != actual {
-					t.Fatalf("Failed %s: Expected %v, got %v.  %s", words[0], expected, actual, public_key)
+					t.Fatalf("1Failed %s: Expected %v, got %v.  %s", words[0], expected, actual, public_key)
 				}
 			}
 
@@ -147,6 +147,7 @@ func Test_Crypto(t *testing.T) {
 			}
 
 		case "hash_to_point": // this is different check than HashToPoint
+
 			hash := HexToKey(words[1])
 			expected := HexToKey(words[2])
 
@@ -156,7 +157,7 @@ func Test_Crypto(t *testing.T) {
 			p1.ToBytes(&actual)
 
 			if actual != expected {
-				t.Logf("%s: Expected %v, got %v.", words[0], expected, actual)
+				t.Fatalf("%s: Expected %v, got %v.", words[0], expected, actual)
 			}
 		case "hash_to_ec":
 			pub := HexToKey(words[1])
@@ -193,4 +194,14 @@ func Test_Crypto(t *testing.T) {
 		}
 	}
 
+}
+
+// test whether H generation is alright
+func TestH(t *testing.T) {
+	G := ScalarmultBase(*(d2h(1)))
+	//	t.Logf("G %s \nH %s", G, H)
+	actual := G.HashToPointSimple()
+	if actual != H {
+		t.Fatalf("H generation failed Actual %s expected %s", actual, H)
+	}
 }

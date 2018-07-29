@@ -27,18 +27,13 @@ import "context"
 import "github.com/intel-go/fastjson"
 import "github.com/osamingo/jsonrpc"
 
-type (
-	GetTxPool_Handler struct{}
-	GetTxPool_Params  struct{} // no params
-	GetTxPool_Result  struct {
-		Tx_list []string `json:"txs,omitempty"`
-		Status  string   `json:"status"`
-	}
-)
+import "github.com/deroproject/derosuite/structures"
+
+type GetTxPool_Handler struct{}
 
 // TODO
 func (h GetTxPool_Handler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
-	var result GetTxPool_Result
+	var result structures.GetTxPool_Result
 
 	result.Status = "OK"
 

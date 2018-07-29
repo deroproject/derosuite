@@ -25,13 +25,9 @@ import "context"
 import "github.com/intel-go/fastjson"
 import "github.com/osamingo/jsonrpc"
 
-type (
-	On_GetBlockHash_Handler struct{}
-	On_GetBlockHash_Params  struct {
-		X [1]uint64
-	}
-	On_GetBlockHash_Result struct{}
-)
+import "github.com/deroproject/derosuite/crypto"
+
+type On_GetBlockHash_Handler struct{}
 
 func (h On_GetBlockHash_Handler) ServeJSONRPC(c context.Context, params *fastjson.RawMessage) (interface{}, *jsonrpc.Error) {
 
@@ -41,15 +37,21 @@ func (h On_GetBlockHash_Handler) ServeJSONRPC(c context.Context, params *fastjso
 		return nil, err
 	}
 
-	if height[0] < chain.Get_Height() {
-		hash, err := chain.Load_BL_ID_at_Height(height[0])
+	if height[0] < uint64(chain.Get_Height()) {
+		/*hash, err := chain.Load_BL_ID_at_Height(int64(height[0]))
 		if err == nil {
 			result := fmt.Sprintf("%s", hash)
 			return result, nil
-		} else {
+		} else */{
 			logger.Warnf("NOT possible, Could not find block at height %d Chain height %d\n", height[0], chain.Get_Height())
 		}
+	} else { // we must return 0
+		var hash crypto.Hash
+		result := fmt.Sprintf("%s", hash)
+		return result, nil
+
 	}
+
 	// if we reach here some error is here
 	return nil, jsonrpc.ErrInvalidParams()
 }
