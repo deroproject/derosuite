@@ -76,7 +76,7 @@ For specific details of current DERO core (daemon) implementation and capabiliti
 10.  **Core-Consensus Protocol implemented:** Consensus protocol serves 2 major purpose
    1. Protects the system from adversaries and protects it from forking and tampering.
    2. Next block in the chain is the one and only correct version of truth ( balances).
-11.  **Proof-of-Work(PoW) algorithm:**  PoW part of core consensus protocol which is used to cryptographically prove that X amount of work has been done to successfully find a block. To deter use of specialized hardware,  an ASIC resistant, memory bound  cryptonight algorithm is used in DERO project.
+11.  **Proof-of-Work(PoW) algorithm:**  PoW part of core consensus protocol which is used to cryptographically prove that X amount of work has been done to successfully find a block.
 12.  **Difficulty algorithm**: Difficulty algorithm controls the system so as blocks are found roughly at the same speed, irrespective of the number and amount of mining power deployed.
 13.  **Serialization/De-serialization of blocks**: Capability to encode/decode/process blocks .
 14.  **Serialization/De-serialization of transactions**: Capability to encode/decode/process transactions.
