@@ -66,7 +66,7 @@ For specific details of current DERO core (daemon) implementation and capabiliti
 
 1. **DAG:** No orphan blocks, No soft-forks.
 2. **BulletProofs:** Zero Knowledge range-proofs(NIZK)
-3. **Cryptonight Hash:** This is an ASIC resistant, memory-bound algorithm. This provides assurance that all miners are equal. ( No miner has any advantage over common miners).
+3. **Cryptonight Hash:** This is memory-bound algorithm. This provides assurance that all miners are equal. ( No miner has any advantage over common miners).
 4. **P2P Protocol:** This layers controls exchange of blocks, transactions and blockchain itself.
 5.  **Pederson Commitment:** (Part of ring confidential transactions): Pederson commitment algorithm is a cryptographic primitive that allows user to commit to a chosen value  while keeping it hidden to others. Pederson commitment  is used to hide all amounts without revealing the actual amount. It is a homomorphic commitment scheme.
 6.  **Borromean Signature:**  (Part of ring confidential transactions):  Borromean Signatures are used to prove that the commitment has a specific value, without revealing the value itself.
