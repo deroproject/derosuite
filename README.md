@@ -92,7 +92,14 @@ Secure and fast crypto is the basic necessity of this project and adequate amoun
 
 There are other optimizations such as base-scalar multiplication could be done in less than a microsecond. Some of these optimizations are not yet deployed and may be deployed at a later stage.
 
+###  About Dero Rocket Bulletproofs
+ - Dero ultrafast bulletproofs optimization techniques in the form used did not exist anywhere in publicly available cryptography literature at the time of implementation. Please contact for any source/reference to include here if it exists.  Ultrafast optimizations verifies Dero bulletproofs 10 times faster than other/original bulletproof implementations. See: https://github.com/deroproject/derosuite/blob/master/crypto/ringct/bulletproof_ultrafast.go
 
+ - DERO rocket bulletproof implementations are hardened, which protects DERO from certain class of attacks.  
+
+ - DERO rocket bulletproof transactions structures are not compatible with other implementations.
+
+Also there are several optimizations planned in near future in Dero rocket bulletproofs which will lead to several times performance boost. Presently they are under study for bugs, verifications, compatibilty etc.
 
 For technical issues and discussion, please visit https://forum.dero.io
 ```
