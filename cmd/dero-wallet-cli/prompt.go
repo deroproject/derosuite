@@ -20,6 +20,7 @@ import "os"
 import "io"
 import "fmt"
 import "bytes"
+import "time"
 import "io/ioutil"
 import "path/filepath"
 import "strings"
@@ -898,14 +899,14 @@ func show_transfers(l *readline.Instance, wallet *walletapi.Wallet, limit uint64
 		case 0:
 
 			if len(transfers[i].PaymentID) == 0 {
-				io.WriteString(l.Stderr(), fmt.Sprintf(color_green+"Height %d TopoHeight %d transaction %s received %s DERO"+color_white+"\n", transfers[i].Height, transfers[i].TopoHeight, transfers[i].TXID, globals.FormatMoney12(transfers[i].Amount)))
+				io.WriteString(l.Stderr(), fmt.Sprintf(color_green+"%s Height %d TopoHeight %d transaction %s received %s DERO"+color_white+"\n",transfers[i].Time.Format(time.RFC822), transfers[i].Height, transfers[i].TopoHeight, transfers[i].TXID, globals.FormatMoney12(transfers[i].Amount)))
 			} else {
 				payment_id := fmt.Sprintf("%x", transfers[i].PaymentID)
-				io.WriteString(l.Stderr(), fmt.Sprintf(color_green+"Height %d TopoHeight %d transaction %s received %s DERO"+color_white+" PAYMENT ID:%s\n", transfers[i].Height, transfers[i].TopoHeight, transfers[i].TXID, globals.FormatMoney12(transfers[i].Amount), payment_id))
+				io.WriteString(l.Stderr(), fmt.Sprintf(color_green+"%s Height %d TopoHeight %d transaction %s received %s DERO"+color_white+" PAYMENT ID:%s\n",transfers[i].Time.Format(time.RFC822), transfers[i].Height, transfers[i].TopoHeight, transfers[i].TXID, globals.FormatMoney12(transfers[i].Amount), payment_id))
 			}
 
 		case 1:
-			io.WriteString(l.Stderr(), fmt.Sprintf(color_magenta+"Height %d TopoHeight %d transaction %s spent %s DERO"+color_white+"\n", transfers[i].Height, transfers[i].TopoHeight, transfers[i].TXID, globals.FormatMoney12(transfers[i].Amount)))
+			io.WriteString(l.Stderr(), fmt.Sprintf(color_magenta+"%s Height %d TopoHeight %d transaction %s spent %s DERO"+color_white+"\n",transfers[i].Time.Format(time.RFC822), transfers[i].Height, transfers[i].TopoHeight, transfers[i].TXID, globals.FormatMoney12(transfers[i].Amount)))
 		case 2:
 			fallthrough
 		default:

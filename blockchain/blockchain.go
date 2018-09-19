@@ -1206,7 +1206,11 @@ skip_checks:
 				// lower reward for byzantine behaviour
 				// for as many block as added
 				if chain.isblock_SideBlock(dbtx, bl_current_hash, highest_topo) { // lost race (or byzantine behaviour)
+                                    if  hard_fork_version_current == 2 {
 					base_reward = (base_reward * 67) / 100 // give only 67 % reward
+                                    }else{
+                                        base_reward = (base_reward * 8) / 100 // give only 8 % reward
+                                    }
 				}
 
 				// logger.Infof("past coins generated %d base reward %d", past_coins_generated, base_reward)
@@ -1243,7 +1247,7 @@ skip_checks:
 				// we will start where the previous block vouts ended
 				_, output_index_start = chain.Get_Block_Output_Index(dbtx, previous_block)
 			}
-			if !chain.write_output_index(dbtx, bl_current_hash, output_index_start) {
+			if !chain.write_output_index(dbtx, bl_current_hash, output_index_start, hard_fork_version_current) {
 				logger.Warnf("Since output index data cannot be wrritten, skipping block")
 				return errormsg.ErrInvalidBlock, false
 			}

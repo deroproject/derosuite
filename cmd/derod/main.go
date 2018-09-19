@@ -136,7 +136,7 @@ func main() {
 	globals.Logger.Infof("Daemon in %s mode", globals.Config.Name)
 	globals.Logger.Infof("Daemon data directory %s", globals.GetDataDirectory())
 
-	//	go check_update_loop ()
+	go check_update_loop ()
 
 	params := map[string]interface{}{}
 

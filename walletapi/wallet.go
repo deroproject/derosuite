@@ -20,6 +20,7 @@ import "fmt"
 import "net"
 import "sort"
 import "sync"
+import "time"
 import "bytes"
 import "strings"
 import "crypto/rand"
@@ -689,6 +690,7 @@ type Entry struct {
 	PaymentID    []byte
 	Status       byte
 	Unlock_Time  uint64
+	Time         time.Time
 }
 
 // finds all inputs which have been received/spent etc
@@ -699,6 +701,8 @@ type Entry struct {
 // if payment_id is true, only entries with payment ids are returned
 func (w *Wallet) Show_Transfers(available bool, in bool, out bool, pool bool, failed bool, payment_id bool, min_height, max_height uint64) (entries []Entry) {
 
+	dero_first_block_time := time.Unix(1512432000,0) //Tuesday, December 5, 2017 12:00:00 AM
+	
 	if max_height == 0 {
 		max_height = 5000000000
 	}
@@ -723,6 +727,12 @@ func (w *Wallet) Show_Transfers(available bool, in bool, out bool, pool bool, fa
 				entry.Amount = tx.WAmount
 				entry.PaymentID = tx.WPaymentID
 				entry.Status = 0
+				entry.Time = time.Unix(int64(tx.TXdata.Block_Time), 0)
+
+				if entry.Height < 95600 { // make up time for pre-atlantis blocks
+						duration,_ :=	time.ParseDuration(fmt.Sprintf("%ds",int64(180*entry.Height)))
+						entry.Time = dero_first_block_time.Add(duration)
+				}
 
 				if payment_id {
 
@@ -760,6 +770,13 @@ func (w *Wallet) Show_Transfers(available bool, in bool, out bool, pool bool, fa
 			entry.Amount = tx.WAmount
 			entry.PaymentID = tx.WPaymentID
 			entry.Status = 0
+			entry.Time = time.Unix(int64(tx.TXdata.Block_Time), 0)
+
+			if entry.Height < 95600 { // make up time for pre-atlantis blocks
+						duration,_ :=	time.ParseDuration(fmt.Sprintf("%ds",int64(180*entry.Height)))
+						entry.Time = dero_first_block_time.Add(duration)
+					}
+
 			if in {
 				if tx.TXdata.Height >= min_height && tx.TXdata.Height <= max_height { // height filter
 					if payment_id {
@@ -793,6 +810,12 @@ func (w *Wallet) Show_Transfers(available bool, in bool, out bool, pool bool, fa
 					entry.TXID = tx.TXdata.TXID
 					entry.TopoHeight = tx.TXdata.TopoHeight
 					entry.PaymentID = entry.PaymentID[:0] // payment id needs to be zero or tracked from some where else
+					entry.Time = time.Unix(int64(tx.TXdata.Block_Time), 0)
+
+					if entry.Height < 95600 { // make up time for pre-atlantis blocks
+						duration,_ :=	time.ParseDuration(fmt.Sprintf("%ds",int64(180*entry.Height)))
+						entry.Time = dero_first_block_time.Add(duration)
+					}
 
 					entry.Status = 1
 					entries = append(entries, entry) // spend entry

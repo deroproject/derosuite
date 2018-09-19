@@ -94,7 +94,7 @@ func init() {
 // 8 bytes blockheight to which this output belongs
 // this function should always succeed or panic showing something is not correct
 // NOTE: this function should only be called after all the tx and the block has been stored to DB
-func (chain *Blockchain) write_output_index(dbtx storage.DBTX, block_id crypto.Hash, index_start int64) (result bool) {
+func (chain *Blockchain) write_output_index(dbtx storage.DBTX, block_id crypto.Hash, index_start int64, hard_fork_version_current int64) (result bool) {
 
 	// load the block
 	bl, err := chain.Load_BL_FROM_ID(dbtx, block_id)
@@ -231,6 +231,18 @@ func (chain *Blockchain) write_output_index(dbtx storage.DBTX, block_id crypto.H
 
 			if j == 0 && tx.Unlock_Time != 0 { // only first output of a TX can be locked
 				o.Unlock_Height = tx.Unlock_Time
+			}
+
+			if hard_fork_version_current >= 3 && o.Unlock_Height  != 0 {
+				if o.Unlock_Height < config.CRYPTONOTE_MAX_BLOCK_NUMBER {
+					if o.Unlock_Height  < (o.Height + 1000) {
+						o.Unlock_Height = o.Height + 1000
+					}
+				}else{
+					if o.Unlock_Height < (o.Block_Time + 12000) {
+						 o.Unlock_Height = o.Block_Time + 12000
+					}
+				}
 			}
 
 			// include the key image list in the first output itself
