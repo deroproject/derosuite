@@ -21,8 +21,7 @@ package config
 // some seed nodes for mainnet (these seed node are not compliant with earlier protocols)
 // only version 2
 var Mainnet_seed_nodes = []string{
-	"212.8.249.51:20202",
-        "212.8.250.159:20202",
+	"212.8.250.159:20202",
         "212.8.250.158:20202",
         "212.8.242.60:20202",
         "89.38.97.110:20202",
@@ -30,6 +29,5 @@ var Mainnet_seed_nodes = []string{
 
 // some seed node for testnet
 var Testnet_seed_nodes = []string{
-        "212.8.249.51:30303",
         "212.8.242.60:30303",      
 }
