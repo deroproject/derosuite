@@ -430,29 +430,24 @@ func (w *Wallet) Add_Transaction_Record_Funds(txdata *globals.TX_Output_Data) (a
 		if w.check_key_exists(BLOCKCHAIN_UNIVERSE, []byte(KEYIMAGE_BUCKET), kimage[:]) {
 			// find the output index to which this key image belong
 			value_bytes, err := w.load_key_value(BLOCKCHAIN_UNIVERSE, []byte(KEYIMAGE_BUCKET), kimage[:])
-			if err != nil {
-				panic(fmt.Sprintf("Error while reading keyimage data key_image %s, err %s", kimage, err))
-			}
-			index := binary.BigEndian.Uint64(value_bytes)
+			if err == nil && len(value_bytes) == 8 {
+				index := binary.BigEndian.Uint64(value_bytes)
 
-			// now lets load the suitable index data
-			value_bytes, err = w.load_key_value(BLOCKCHAIN_UNIVERSE, []byte(FUNDS_BUCKET), itob(index))
-			if err != nil {
-				panic(fmt.Sprintf("Error while reading funds data key_image %s, index %d err %s", kimage, index, err))
-			}
+				// now lets load the suitable index data
+				value_bytes, err = w.load_key_value(BLOCKCHAIN_UNIVERSE, []byte(FUNDS_BUCKET), itob(index))
+				if err == nil {
+					var tx_wallet_temp TX_Wallet_Data
+					err = msgpack.Unmarshal(value_bytes, &tx_wallet_temp)
+					if err == nil {
+						if tx_wallet_temp.TXdata.TXID != txdata.TXID { // transaction mismatch
+							return 0, false
+						}
 
-			var tx_wallet_temp TX_Wallet_Data
-			err = msgpack.Unmarshal(value_bytes, &tx_wallet_temp)
-			if err != nil {
-				panic(fmt.Sprintf("Error while decoding funds data key_image %s, index %d err %s", kimage, index, err))
-			}
-
-			if tx_wallet_temp.TXdata.TXID != txdata.TXID { // transaction mismatch
-				return 0, false
-			}
-
-			if tx_wallet_temp.TXdata.Index_within_tx != txdata.Index_within_tx { // index within tx mismatch
-				return 0, false
+						if tx_wallet_temp.TXdata.Index_within_tx != txdata.Index_within_tx { // index within tx mismatch
+							return 0, false
+						}
+					}
+				}
 			}
 
 		}
