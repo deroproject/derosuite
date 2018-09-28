@@ -197,7 +197,6 @@ func (w *Wallet) GetSeedinLanguage(lang string) (str string) {
 	return mnemonics.Key_To_Words(w.account.Keys.Spendkey_Secret, lang)
 }
 
-
 // view wallet key consists of public spendkey and private view key
 func (w *Wallet) GetViewWalletKey() (str string) {
 	return fmt.Sprintf("%s%s", w.account.Keys.Spendkey_Public, w.account.Keys.Viewkey_Secret)
@@ -427,6 +426,36 @@ func (w *Wallet) Add_Transaction_Record_Funds(txdata *globals.TX_Output_Data) (a
 		secret_key, _, kimage := w.Generate_Helper_Key_Image(txdata.Tx_Public_Key, txdata.Index_within_tx)
 		tx_wallet.WKimage = kimage
 		tx_wallet.WKey.Destination = secret_key
+
+		if w.check_key_exists(BLOCKCHAIN_UNIVERSE, []byte(KEYIMAGE_BUCKET), kimage[:]) {
+			// find the output index to which this key image belong
+			value_bytes, err := w.load_key_value(BLOCKCHAIN_UNIVERSE, []byte(KEYIMAGE_BUCKET), kimage[:])
+			if err != nil {
+				panic(fmt.Sprintf("Error while reading keyimage data key_image %s, err %s", kimage, err))
+			}
+			index := binary.BigEndian.Uint64(value_bytes)
+
+			// now lets load the suitable index data
+			value_bytes, err = w.load_key_value(BLOCKCHAIN_UNIVERSE, []byte(FUNDS_BUCKET), itob(index))
+			if err != nil {
+				panic(fmt.Sprintf("Error while reading funds data key_image %s, index %d err %s", kimage, index, err))
+			}
+
+			var tx_wallet_temp TX_Wallet_Data
+			err = msgpack.Unmarshal(value_bytes, &tx_wallet_temp)
+			if err != nil {
+				panic(fmt.Sprintf("Error while decoding funds data key_image %s, index %d err %s", kimage, index, err))
+			}
+
+			if tx_wallet_temp.TXdata.TXID != txdata.TXID { // transaction mismatch
+				return 0, false
+			}
+
+			if tx_wallet_temp.TXdata.Index_within_tx != txdata.Index_within_tx { // index within tx mismatch
+				return 0, false
+			}
+
+		}
 
 		// store the key image so as later on we can find when it is spent
 		w.store_key_value(BLOCKCHAIN_UNIVERSE, []byte(KEYIMAGE_BUCKET), kimage[:], itob(txdata.Index_Global))
@@ -701,8 +730,8 @@ type Entry struct {
 // if payment_id is true, only entries with payment ids are returned
 func (w *Wallet) Show_Transfers(available bool, in bool, out bool, pool bool, failed bool, payment_id bool, min_height, max_height uint64) (entries []Entry) {
 
-	dero_first_block_time := time.Unix(1512432000,0) //Tuesday, December 5, 2017 12:00:00 AM
-	
+	dero_first_block_time := time.Unix(1512432000, 0) //Tuesday, December 5, 2017 12:00:00 AM
+
 	if max_height == 0 {
 		max_height = 5000000000
 	}
@@ -730,8 +759,8 @@ func (w *Wallet) Show_Transfers(available bool, in bool, out bool, pool bool, fa
 				entry.Time = time.Unix(int64(tx.TXdata.Block_Time), 0)
 
 				if entry.Height < 95600 { // make up time for pre-atlantis blocks
-						duration,_ :=	time.ParseDuration(fmt.Sprintf("%ds",int64(180*entry.Height)))
-						entry.Time = dero_first_block_time.Add(duration)
+					duration, _ := time.ParseDuration(fmt.Sprintf("%ds", int64(180*entry.Height)))
+					entry.Time = dero_first_block_time.Add(duration)
 				}
 
 				if payment_id {
@@ -773,9 +802,9 @@ func (w *Wallet) Show_Transfers(available bool, in bool, out bool, pool bool, fa
 			entry.Time = time.Unix(int64(tx.TXdata.Block_Time), 0)
 
 			if entry.Height < 95600 { // make up time for pre-atlantis blocks
-						duration,_ :=	time.ParseDuration(fmt.Sprintf("%ds",int64(180*entry.Height)))
-						entry.Time = dero_first_block_time.Add(duration)
-					}
+				duration, _ := time.ParseDuration(fmt.Sprintf("%ds", int64(180*entry.Height)))
+				entry.Time = dero_first_block_time.Add(duration)
+			}
 
 			if in {
 				if tx.TXdata.Height >= min_height && tx.TXdata.Height <= max_height { // height filter
@@ -813,7 +842,7 @@ func (w *Wallet) Show_Transfers(available bool, in bool, out bool, pool bool, fa
 					entry.Time = time.Unix(int64(tx.TXdata.Block_Time), 0)
 
 					if entry.Height < 95600 { // make up time for pre-atlantis blocks
-						duration,_ :=	time.ParseDuration(fmt.Sprintf("%ds",int64(180*entry.Height)))
+						duration, _ := time.ParseDuration(fmt.Sprintf("%ds", int64(180*entry.Height)))
 						entry.Time = dero_first_block_time.Add(duration)
 					}
 
@@ -1127,18 +1156,17 @@ func (w *Wallet) GetTXKey(txhash crypto.Hash) string {
 	return fmt.Sprintf("%x", key)
 }
 
-
 // we need better names for functions
-func (w *Wallet) GetTXOutDetails(txhash crypto.Hash) ( details structures.Outgoing_Transfer_Details) {
+func (w *Wallet) GetTXOutDetails(txhash crypto.Hash) (details structures.Outgoing_Transfer_Details) {
 
 	data_bytes, err := w.load_key_value(BLOCKCHAIN_UNIVERSE, []byte(TX_OUT_DETAILS_BUCKET), txhash[:])
 	if err != nil {
-		return 
+		return
 	}
-	
-	if len(data_bytes) > 10 {
-            json.Unmarshal(data_bytes,&details)
-        }
 
-	return 
+	if len(data_bytes) > 10 {
+		json.Unmarshal(data_bytes, &details)
+	}
+
+	return
 }
