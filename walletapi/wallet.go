@@ -903,16 +903,17 @@ func (w *Wallet) Get_Payments_TXID(txid []byte) (entry Entry) {
 			rlog.Warnf("Error while reading available funds index index %d err %s", current_index, err)
 			continue
 		}
+		if bytes.Compare(txid, tx.TXdata.TXID[:]) == 0 {
 
-		entry.Index_Global = current_index
-		entry.Height = tx.TXdata.Height
-		entry.TopoHeight = tx.TXdata.TopoHeight
-		entry.TXID = tx.TXdata.TXID
-		entry.Amount += tx.WAmount // merge all amounts ( if it was provided in different outputs)
-		entry.PaymentID = tx.WPaymentID
-		entry.Status = 0
-		entry.Unlock_Time = tx.TXdata.Unlock_Height
-
+			entry.Index_Global = current_index
+			entry.Height = tx.TXdata.Height
+			entry.TopoHeight = tx.TXdata.TopoHeight
+			entry.TXID = tx.TXdata.TXID
+			entry.Amount += tx.WAmount // merge all amounts ( if it was provided in different outputs)
+			entry.PaymentID = tx.WPaymentID
+			entry.Status = 0
+			entry.Unlock_Time = tx.TXdata.Unlock_Height
+		}
 	}
 
 	return
