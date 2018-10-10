@@ -69,8 +69,8 @@ func (h GetInfo_Handler) ServeJSONRPC(c context.Context, params *fastjson.RawMes
 	result.Median_Block_Size = config.CRYPTONOTE_MAX_BLOCK_SIZE
 
 	result.Total_Supply = chain.Load_Already_Generated_Coins_for_Topo_Index(nil, result.TopoHeight)
-	if result.Total_Supply > (2000000 * 1000000000000) {
-		result.Total_Supply -= (2000000 * 1000000000000) // remove  premine
+	if result.Total_Supply > (1000000 * 1000000000000) {
+		result.Total_Supply -= (1000000 * 1000000000000) // remove  premine
 	}
 	result.Total_Supply = result.Total_Supply / 1000000000000
 

@@ -758,8 +758,8 @@ func main() {
 
 			supply := chain.Load_Already_Generated_Coins_for_Topo_Index(nil, chain.Load_TOPO_HEIGHT(nil))
 
-			if supply > (2000000 * 1000000000000) {
-				supply -= (2000000 * 1000000000000) // remove  premine
+			if supply > (1000000 * 1000000000000) {
+				supply -= (1000000 * 1000000000000) // remove  premine
 			}
 			fmt.Printf("Network %s Height %d  NW Hashrate %0.03f MH/sec  TH %s Peers %d inc, %d out  MEMPOOL size %d  Total Supply %s DERO \n", globals.Config.Name, chain.Get_Height(), float64(chain.Get_Network_HashRate())/1000000.0, chain.Get_Top_ID(), inc, out, len(chain.Mempool.Mempool_List_TX()), globals.FormatMoney(supply))
 

@@ -21,7 +21,7 @@ func Init_rlog() {
 	HOOK.formatter.DisableTimestamp = true
 
 	if os.Getenv("RLOG_LOG_LEVEL") == "" {
-		os.Setenv("RLOG_LOG_LEVEL", "INFO") // default logging in debug mode
+		os.Setenv("RLOG_LOG_LEVEL", "WARN") // default logging in debug mode
 	}
 
 	if os.Getenv("RLOG_LOG_FILE") == "" {
