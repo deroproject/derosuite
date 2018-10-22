@@ -771,7 +771,7 @@ func usage(w io.Writer) {
 func display_seed(l *readline.Instance, wallet *walletapi.Wallet) {
 	seed := wallet.GetSeed()
 	fmt.Fprintf(l.Stderr(), color_green+"PLEASE NOTE: the following 25 words can be used to recover access to your wallet. Please write them down and store them somewhere safe and secure. Please do not store them in your email or on file storage services outside of your immediate control."+color_white+"\n")
-	fmt.Fprintf(os.Stderr, color_red+"%s"+color_white+"\n", seed)
+	fmt.Fprintf(l.Stderr(), color_red+"%s"+color_white+"\n", seed)
 
 }
 
@@ -782,7 +782,7 @@ func display_spend_key(l *readline.Instance, wallet *walletapi.Wallet) {
 
 	keys := wallet.Get_Keys()
 	if !account.ViewOnly {
-		fmt.Fprintf(os.Stderr, "spend key secret : "+color_red+"%s"+color_white+"\n", keys.Spendkey_Secret)
+		fmt.Fprintf(l.Stderr(), "spend key secret : "+color_red+"%s"+color_white+"\n", keys.Spendkey_Secret)
 	}
 	fmt.Fprintf(os.Stderr, "spend key public : %s\n", keys.Spendkey_Public)
 }
@@ -791,7 +791,7 @@ func display_spend_key(l *readline.Instance, wallet *walletapi.Wallet) {
 func display_view_key(l *readline.Instance, wallet *walletapi.Wallet) {
 
 	keys := wallet.Get_Keys()
-	fmt.Fprintf(os.Stderr, "view key secret : "+color_yellow+"%s"+color_white+"\n", keys.Viewkey_Secret)
+	fmt.Fprintf(l.Stderr(), "view key secret : "+color_yellow+"%s"+color_white+"\n", keys.Viewkey_Secret)
 	fmt.Fprintf(os.Stderr, "view key public : %s\n", keys.Viewkey_Public)
 
 }
