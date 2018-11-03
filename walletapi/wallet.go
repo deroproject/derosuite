@@ -965,7 +965,7 @@ func (w *Wallet) Clean() {
 	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(FUNDS_SPENT_WHERE))
 	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(FUNDS_BUCKET_OUTGOING))
 
-	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(RING_BUCKET))
+//	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(RING_BUCKET)) //Improves wallet rescan performance.
 	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(KEYIMAGE_BUCKET))
 	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(HEIGHT_TO_BLOCK_BUCKET))
 

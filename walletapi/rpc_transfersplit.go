@@ -60,7 +60,7 @@ func (h TransferSplit_Handler) ServeJSONRPC(c context.Context, params *fastjson.
 
         unlock_time := p.Unlock_time
 	payment_id := p.Payment_ID
-	if len(payment_id) > 0 && len(payment_id) != 64 {
+	if len(payment_id) > 0 && (len(payment_id) == 64 || len(payment_id) == 16) != true  {
 		return nil, jsonrpc.ErrInvalidParams() // we should give invalid payment ID
 	}
 	if _, err := hex.DecodeString(p.Payment_ID); err != nil {
