@@ -440,10 +440,12 @@ func (w *Wallet) Add_Transaction_Record_Funds(txdata *globals.TX_Output_Data) (a
 					err = msgpack.Unmarshal(value_bytes, &tx_wallet_temp)
 					if err == nil {
 						if tx_wallet_temp.TXdata.TXID != txdata.TXID { // transaction mismatch
+							rlog.Warnf("KICD  %s,%s,  \n%+v  \n%+v",txdata.TXID, tx_wallet_temp.TXdata.TXID, txdata,tx_wallet_temp);
 							return 0, false
 						}
 
 						if tx_wallet_temp.TXdata.Index_within_tx != txdata.Index_within_tx { // index within tx mismatch
+							rlog.Warnf("KICD2  %s,%s,  \n%+v  \n%+v",txdata.TXID, tx_wallet_temp.TXdata.TXID, txdata,tx_wallet_temp);
 							return 0, false
 						}
 					}
@@ -706,17 +708,20 @@ func (w *Wallet) Add_Possible_Ring_Member(txdata *globals.TX_Output_Data) {
 }
 
 type Entry struct {
-	Index_Global uint64
-	Height       uint64
-	TopoHeight   int64
-	TXID         crypto.Hash
-	Amount       uint64
-	PaymentID    []byte
-	Status       byte
-	Unlock_Time  uint64
-	Time         time.Time
+	Index_Global uint64 `json:"index_global"`
+	Height       uint64 `json:"height"` 
+	TopoHeight   int64  `json:"topoheight"` 
+	TXID         crypto.Hash `json:"txid"` 
+	Amount       uint64  `json:"amount"`
+	PaymentID    []byte `json:"payment_id"`
+	Status       byte  `json:"status"`
+ 	Unlock_Time  uint64 `json:"unlock_time"`
+	Time         time.Time `json:"time"`
+	Secret_TX_Key string `json:"secret_tx_key"`  // can be used to prove if available
+	Details structures.Outgoing_Transfer_Details `json:"details"`  // actual details if available
 }
 
+	
 // finds all inputs which have been received/spent etc
 // TODO this code can be easily parallelised and need to be parallelised
 // if only the availble is requested, then the wallet is very fast
@@ -840,6 +845,10 @@ func (w *Wallet) Show_Transfers(available bool, in bool, out bool, pool bool, fa
 						duration, _ := time.ParseDuration(fmt.Sprintf("%ds", int64(180*entry.Height)))
 						entry.Time = dero_first_block_time.Add(duration)
 					}
+					
+					// fill tx secret_key 
+					entry.Secret_TX_Key =  w.GetTXKey(tx.TXdata.TXID)
+                                        entry.Details = w.GetTXOutDetails(tx.TXdata.TXID)
 
 					entry.Status = 1
 					entries = append(entries, entry) // spend entry
@@ -880,6 +889,10 @@ func (w *Wallet) Get_Payments_Payment_ID(payid []byte, min_height uint64) (entri
 			entry.PaymentID = tx.WPaymentID
 			entry.Status = 0
 			entry.Unlock_Time = tx.TXdata.Unlock_Height
+			
+			// fill tx secret_key 
+                        entry.Secret_TX_Key =  w.GetTXKey(tx.TXdata.TXID)
+                        entry.Details = w.GetTXOutDetails(tx.TXdata.TXID)
 			entries = append(entries, entry)
 		}
 	}
@@ -913,6 +926,10 @@ func (w *Wallet) Get_Payments_TXID(txid []byte) (entry Entry) {
 			entry.PaymentID = tx.WPaymentID
 			entry.Status = 0
 			entry.Unlock_Time = tx.TXdata.Unlock_Height
+			
+			// fill tx secret_key 
+                        entry.Secret_TX_Key =  w.GetTXKey(tx.TXdata.TXID)
+                        entry.Details = w.GetTXOutDetails(tx.TXdata.TXID)
 		}
 	}
 
@@ -965,7 +982,7 @@ func (w *Wallet) Clean() {
 	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(FUNDS_SPENT_WHERE))
 	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(FUNDS_BUCKET_OUTGOING))
 
-//	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(RING_BUCKET)) //Improves wallet rescan performance.
+	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(RING_BUCKET)) //Improves wallet rescan performance.
 	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(KEYIMAGE_BUCKET))
 	w.delete_bucket(BLOCKCHAIN_UNIVERSE, []byte(HEIGHT_TO_BLOCK_BUCKET))
 

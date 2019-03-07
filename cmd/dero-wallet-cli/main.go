@@ -72,7 +72,8 @@ Usage:
   --restore-deterministic-wallet    Restore wallet from previously saved recovery seed
   --electrum-seed=<recovery-seed>   Seed to use while restoring wallet
   --socks-proxy=<socks_ip:port>  Use a proxy to connect to Daemon.
-  --daemon-address=<host:port>    Use daemon instance at <host>:<port>
+  --remote      use hard coded remote daemon https://rwallet.dero.live
+  --daemon-address=<host:port>    Use daemon instance at <host>:<port> or https://domain
   --rpc-server      Run rpc server, so wallet is accessible using api
   --rpc-bind=<127.0.0.1:20209>  Wallet binds on this ip address and port
   --rpc-login=<username:password>  RPC server will grant access based on these credentials
@@ -315,7 +316,8 @@ func main() {
 				continue
 			}
 		} else if err == io.EOF {
-			break
+//			break
+			time.Sleep(time.Second)
 		}
 
 		// pass command to suitable handler

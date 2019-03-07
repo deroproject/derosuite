@@ -26,6 +26,7 @@ import "strings"
 import "strconv"
 import "runtime"
 import "math/big"
+import "os/signal"
 
 //import "crypto/sha1"
 import "encoding/hex"
@@ -324,6 +325,19 @@ func main() {
 	})
 	l.Refresh() // refresh the prompt
 
+         go func (){
+            var gracefulStop = make(chan os.Signal)
+            signal.Notify(gracefulStop,os.Interrupt) // listen to all signals
+            for {
+                sig := <-gracefulStop
+                fmt.Printf("received signal %s\n", sig)
+            
+                if sig.String() == "interrupt" {
+                    close(Exit_In_Progress)	
+                }
+            }
+        }()
+
 	for {
 		line, err := l.Readline()
 		if err == readline.ErrInterrupt {
@@ -335,7 +349,8 @@ func main() {
 				continue
 			}
 		} else if err == io.EOF {
-			break
+			<-Exit_In_Progress
+		          break
 		}
 
 		line = strings.TrimSpace(line)

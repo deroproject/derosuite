@@ -47,6 +47,16 @@ echo  mkdir -p $OUTPUT_DIR
   CMD="GOOS=${GOOS} GOARCH=${GOARCH} go build -o $OUTPUT_DIR/${BIN_FILENAME} $package"
   echo "${CMD}"
   eval $CMD || FAILURES="${FAILURES} ${PLATFORM}"
+
+  # build docker image for linux amd64 competely static  
+  if [[ "${GOOS}" == "linux" && "${GOARCH}" == "amd64" && "${OUTPUT}" != "explorer" ]]; then
+    BIN_FILENAME="docker-${OUTPUT}-${GOOS}-${GOARCH}"
+    CMD="GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=0 go build -o $OUTPUT_DIR/${BIN_FILENAME} $package"
+    echo "${CMD}"
+    eval $CMD || FAILURES="${FAILURES} ${PLATFORM}"
+  fi
+  
+
 done
 
 # ARM64 builds only for linux

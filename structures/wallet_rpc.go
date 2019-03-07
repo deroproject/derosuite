@@ -102,7 +102,7 @@ type (
 		Amount      uint64 `json:"amount"`
 		Fees        uint64 `json:"fee,omitempty"`
 		Unlock_time uint64 `json:"unlock_time"`
-		//Destination_list
+		Destinations []Destination `json:"destinations"`
 		Note string `json:"note,omitempty"`
 		Type string `json:"type,omitempty"`
 	}

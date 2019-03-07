@@ -177,3 +177,7 @@ var Testnet = CHAIN_CONFIG{Name: "testnet", // testnet will always have last 3 b
 // these are still here for previous emission functions, they are not used directly for atlantis
 const DYNAMIC_FEE_PER_KB_BASE_FEE_V5 = uint64((2000000000 * 60000) / 300000)
 const DYNAMIC_FEE_PER_KB_BASE_BLOCK_REWARD = uint64(1000000000000) // 1 * pow(10,12)
+
+
+// mainnet has a remote daemon node, which can be used be default, if user provides a  --remote flag
+const REMOTE_DAEMON = "https://rwallet.dero.live"

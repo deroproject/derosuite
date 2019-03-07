@@ -79,6 +79,10 @@ func buildurl(endpoint string) string {
 // this will tell whether the wallet can connection successfully to  daemon or not
 func (w *Wallet) IsDaemonOnline() (err error) {
 
+    if globals.Arguments["--remote"] == true  && globals.IsMainnet() {
+        w.Daemon_Endpoint = config.REMOTE_DAEMON
+    }
+
 	// if user provided endpoint has error, use default
 	if w.Daemon_Endpoint == "" {
 		w.Daemon_Endpoint = "127.0.0.1:" + fmt.Sprintf("%d", config.Mainnet.RPC_Default_Port)
