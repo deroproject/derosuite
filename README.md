@@ -89,7 +89,7 @@ Wallet RPC Default Port: 30309
 &nbsp; &nbsp; &nbsp; &nbsp; Following are DERO first and leading innovations.
 
 #### DERO DAG
-&nbsp; &nbsp; &nbsp; &nbsp; DERO DAG implementation builds outs a main chain from the DAG network of blocks which refers to main blocks (100% reward) and side blocks (67% rewards).  
+&nbsp; &nbsp; &nbsp; &nbsp; DERO DAG implementation builds outs a main chain from the DAG network of blocks which refers to main blocks (100% reward) and side blocks (8% rewards).  
 
 ![DERO DAG stats.dero.io](https://raw.githubusercontent.com/deroproject/documentation/master/images/Dag1.jpeg)  
 *DERO DAG Screenshot* [Live](https://stats.dero.io/)  
@@ -177,7 +177,8 @@ DERO users can run their own explorer on local machine and can [browse](http://1
 *DERO EXPLORER Screenshot*  
 
 #### Proving DERO Transactions
-DERO blockchain is completely private, so anyone cannot view, confirm, verify any other's wallet balance or any transactions. So to prove any transaction you require *Tx private key* and *receiver address*.  
+DERO blockchain is completely private, so anyone cannot view, confirm, verify any other's wallet balance or any transactions. 
+So to prove any transaction you require *Tx private key* and *receiver address*.  
 Tx private key can be obtained using get_tx_key command in dero-wallet-cli.  
 Enter the *Tx private key* and *receiver address* in [DERO EXPLORER](https://explorer.dero.io)  
 ![DERO Explorer Proving Transaction](https://github.com/deroproject/documentation/raw/master/images/explorer-prove-tx.png)
