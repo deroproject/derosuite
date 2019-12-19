@@ -137,7 +137,7 @@ func main() {
 	globals.Logger.Infof("Daemon in %s mode", globals.Config.Name)
 	globals.Logger.Infof("Daemon data directory %s", globals.GetDataDirectory())
 
-	go check_update_loop ()
+	go check_update_loop()
 
 	params := map[string]interface{}{}
 
@@ -145,7 +145,7 @@ func main() {
 	chain, err := blockchain.Blockchain_Start(params)
 
 	if err != nil {
-		globals.Logger.Warnf("Error starting blockchain err '%s'",err)
+		globals.Logger.Warnf("Error starting blockchain err '%s'", err)
 		return
 	}
 
@@ -361,17 +361,11 @@ func main() {
 			command = strings.ToLower(line_parts[0])
 		}
 
+		// switch command
 		switch {
-		case line == "help":
+		case command == "help":
 			usage(l.Stderr())
 
-		case strings.HasPrefix(line, "say"):
-			line := strings.TrimSpace(line[3:])
-			if len(line) == 0 {
-				log.Println("say what?")
-				break
-			}
-		//
 		case command == "import_chain": // this migrates existing chain from DERO to DERO atlantis
 			f, err := os.Open("/tmp/raw_export.txt")
 			if err != nil {
@@ -437,7 +431,7 @@ func main() {
 				if err, ok := chain.Add_Complete_Block(cbl); ok {
 					globals.Logger.Warnf("Block Successfully accepted by chain at height %d", cbl.Bl.Miner_TX.Vin[0].(transaction.Txin_gen).Height)
 				} else {
-					globals.Logger.Warnf("Block rejected by chain at height %d, please investigate, err %s", cbl.Bl.Miner_TX.Vin[0].(transaction.Txin_gen).Height,err)
+					globals.Logger.Warnf("Block rejected by chain at height %d, please investigate, err %s", cbl.Bl.Miner_TX.Vin[0].(transaction.Txin_gen).Height, err)
 					globals.Logger.Warnf("Stopping import")
 
 				}
@@ -455,21 +449,21 @@ func main() {
 				continue
 			}
 			if err := pprof.StartCPUProfile(cpufile); err != nil {
-				globals.Logger.Warnf("could not start CPU profile: ", err)
+				globals.Logger.Warnf("could not start CPU profile: %s", err)
 			}
 			globals.Logger.Infof("CPU profiling will be available after program shutsdown")
 			defer pprof.StopCPUProfile()
 
 			/*
-			        	memoryfile,err := os.Create(filepath.Join(globals.GetDataDirectory(), "memoryprofile.prof"))
-						if err != nil{
-							globals.Logger.Warnf("Could not start memory profiling, err %s", err)
-							continue
-						}
-						if err := pprof.WriteHeapProfile(memoryfile); err != nil {
-			            	globals.Logger.Warnf("could not start memory profile: ", err)
-			        	}
-			        	memoryfile.Close()
+				        	memoryfile,err := os.Create(filepath.Join(globals.GetDataDirectory(), "memoryprofile.prof"))
+							if err != nil{
+								globals.Logger.Warnf("Could not start memory profiling, err %s", err)
+								continue
+							}
+							if err := pprof.WriteHeapProfile(memoryfile); err != nil {
+				            	globals.Logger.Warnf("could not start memory profile: ", err)
+				        	}
+				        	memoryfile.Close()
 			*/
 
 		case command == "print_bc":
@@ -763,10 +757,10 @@ func main() {
 				}
 			}
 
-		case strings.ToLower(line) == "diff":
+		case command == "diff":
 			fmt.Printf("Network %s BH %d, Diff %d, NW Hashrate %0.03f MH/sec  TH %s\n", globals.Config.Name, chain.Get_Height(), chain.Get_Difficulty(), float64(chain.Get_Network_HashRate())/1000000.0, chain.Get_Top_ID())
 
-		case strings.ToLower(line) == "status":
+		case command == "status":
 			// fmt.Printf("chain diff %d\n",chain.Get_Difficulty_At_Block(chain.Top_ID))
 			//fmt.Printf("chain nw rate %d\n", chain.Get_Network_HashRate())
 			inc, out := p2p.Peer_Direction_Count()
@@ -796,21 +790,23 @@ func main() {
 				fmt.Printf("Hard-Fork v%d\n", version)
 
 			}
-		case strings.ToLower(line) == "peer_list": // print peer list
-
+		case command == "peer_list": // print peer list
 			p2p.PeerList_Print()
 
-		case strings.ToLower(line) == "sync_info": // print active connections
-
+		case command == "sync_info": // print active connections
 			p2p.Connection_Print()
-		case strings.ToLower(line) == "bye":
+
+		case command == "bye":
 			fallthrough
-		case strings.ToLower(line) == "exit":
+
+		case command == "exit":
 			fallthrough
-		case strings.ToLower(line) == "quit":
+
+		case command == "quit":
 			close(Exit_In_Progress)
 			goto exit
-		case strings.ToLower(line) == "graph":
+
+		case command == "graph":
 			blockchain.WriteBlockChainTree(chain, "/tmp/graph.dot")
 
 		case command == "pop":
@@ -876,7 +872,7 @@ func main() {
 		case command == "bans":
 			p2p.BanList_Print() // print ban list
 
-		case strings.ToLower(line) == "checkpoints": // save all knowns block id
+		case command == "checkpoints": // save all knowns block id
 
 			var block_id crypto.Hash
 			checksums := "mainnet_checksums.dat"
@@ -936,10 +932,10 @@ func main() {
 			fchecksum.Close()
 
 			chain.Unlock()
-		case line == "sleep":
+		case command == "sleep":
 			log.Println("sleep 4 second")
 			time.Sleep(4 * time.Second)
-		case line == "":
+		case command == "":
 		default:
 			log.Println("you said:", strconv.Quote(line))
 		}
@@ -1044,3 +1040,4 @@ func filterInput(r rune) (rune, bool) {
 	}
 	return r, true
 }
+
