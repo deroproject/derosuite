@@ -401,7 +401,7 @@ func Transfer_Everything(l *readline.Instance) {
 					globals.Logger.Infof("Transaction saved successfully. txid = %s", tx.GetHash())
 					globals.Logger.Infof("Saved to %s", filename)
 				} else {
-					globals.Logger.Warnf("Error saving tx to %s %s, err %s", filename, err)
+					globals.Logger.Warnf("Error saving tx to %s , err %s", filename, err)
 				}
 			}
 

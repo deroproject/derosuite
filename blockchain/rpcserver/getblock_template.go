@@ -48,7 +48,7 @@ func (h GetBlockTemplate_Handler) ServeJSONRPC(c context.Context, params *fastjs
 		return nil, err
 	}
 	
-	
+	/*
 	if !get_block_limiter.Allow() { // if rate limiter allows, then add block to chain
 		logger.Warnf("Too many get block template requests per sec rejected by chain.")
                 
@@ -59,6 +59,7 @@ func (h GetBlockTemplate_Handler) ServeJSONRPC(c context.Context, params *fastjs
 	
             
 	}
+    */
 
 	/*
 		return structures.GetBlockTemplate_Result{

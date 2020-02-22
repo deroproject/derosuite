@@ -86,7 +86,7 @@ func main() {
 
 	log.Debugf("Arguments %+v", arguments)
 	log.Infof("DERO Atlantis Exporer :  This is under heavy development, use it for testing/evaluations purpose only")
-	log.Infof("Copyright 2017-2018 DERO Project. All rights reserved.")
+	log.Infof("Copyright 2017-2020 DERO Project. All rights reserved.")
 	endpoint = "127.0.0.1:30306"
 	if arguments["--rpc-server-address"] != nil {
 		endpoint = arguments["--rpc-server-address"].(string)
@@ -527,7 +527,7 @@ func tx_handler(w http.ResponseWriter, r *http.Request) {
 	_ = indexes
 	_ = amounts
 	if err == nil { //&& len(amounts) > 0 && len(indexes) > 0{
-		log.Debugf("Successfully proved transaction %s len(payids)",tx_hex, len(payids))
+		log.Debugf("Successfully proved transaction %s len(payids) %d",tx_hex, len(payids))
 		info.Proof_index = int64(indexes[0])
 		info.Proof_address =  daddress
 		info.Proof_amount = globals.FormatMoney12(amounts[0])

@@ -154,7 +154,7 @@ func (conn *Connection) Send_Message_prelocked(data_bytes []byte) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			conn.logger.Warnf("Recovered while handling connection, Stack trace below", r)
+			conn.logger.Warnf("Recovered while handling connection, Stack trace below %+v", r)
 			conn.logger.Warnf("Stack trace  \n%s", debug.Stack())
 			conn.Exit()
 		}
@@ -270,7 +270,7 @@ func Handle_Connection(conn net.Conn, remote_addr *net.TCPAddr, incoming bool, s
 
 	defer func() {
 		if r := recover(); r != nil {
-			connection.logger.Warnf("Recovered while handling connection, Stack trace below", r)
+			connection.logger.Warnf("Recovered while handling connection, Stack trace below %+v", r)
 			connection.logger.Warnf("Stack trace  \n%s", debug.Stack())
 			connection.Exit()
 		}

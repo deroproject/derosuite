@@ -194,8 +194,22 @@ func (chain *Blockchain) Get_Difficulty_At_Tips(dbtx storage.DBTX, tips []crypto
 		}
 	}
 
+    // if we are hardforking from 3 to 4
+	// we can start from high difficulty to find the right point
+	if height >= 1 && chain.Get_Current_Version_at_Height(height-1) <= 3 && chain.Get_Current_Version_at_Height(height) == 4 {
+		if globals.IsMainnet() {
+			bootstrap_difficulty := new(big.Int).SetUint64(config.MAINNET_BOOTSTRAP_DIFFICULTY_hf4) // return bootstrap mainnet difficulty
+			rlog.Infof("Returning bootstrap difficulty %s at height %d", bootstrap_difficulty.String(), height)
+			return bootstrap_difficulty
+		} else {
+			bootstrap_difficulty := new(big.Int).SetUint64(config.TESTNET_BOOTSTRAP_DIFFICULTY)
+			rlog.Infof("Returning bootstrap difficulty %s at height %d", bootstrap_difficulty.String(), height)
+			return bootstrap_difficulty // return bootstrap difficulty for testnet
+		}
+	}
+
 	// for testing purposes, not possible on mainchain
-	if height < 4 && chain.Get_Current_Version_at_Height(height) >= 2 {
+	if height < 3 && chain.Get_Current_Version_at_Height(height) <= 3 {
 		return MinimumDifficulty
 	}
 
@@ -264,7 +278,13 @@ func (chain *Blockchain) Get_Difficulty_At_Tips(dbtx storage.DBTX, tips []crypto
 	// 1 - (block_timestamp - parent_timestamp) // ((config.BLOCK_TIME*2)/3)
 	// the above creates the following ranges  0-5 , increase diff 6-11 keep it constant,  above 12 and above decrease
 	big1 := new(big.Int).SetUint64(1)
-	big_block_chain_time_range := new(big.Int).SetUint64((config.BLOCK_TIME * 2) / 3)
+
+    block_time:= config.BLOCK_TIME
+    if  chain.Get_Current_Version_at_Height(height) >= 4 {
+		block_time = config.BLOCK_TIME_hf4
+	}
+	big_block_chain_time_range := new(big.Int).SetUint64((block_time * 2) / 3)
+
 	DifficultyBoundDivisor := new(big.Int).SetUint64(100) // granularity of 100 steps to increase or decrease difficulty
 	bigmaxdifficulydrop := new(big.Int).SetInt64(-2)      // this should ideally be .05% of difficuly bound divisor, but currentlt its 0.5 %
 

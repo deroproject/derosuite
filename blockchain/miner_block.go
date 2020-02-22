@@ -211,12 +211,24 @@ func (chain *Blockchain) Create_new_miner_block(miner_address address.Address) (
 // miner tx in hex +
 // 2 bytes ( inhex 4 bytes for number of tx )
 // tx hashes that follow
-
+var cache_block block.Block
+var cache_block_mutex sync.Mutex
 func (chain *Blockchain) Create_new_block_template_mining(top_hash crypto.Hash, miner_address address.Address, reserve_space int) (bl block.Block, blockhashing_blob string, block_template_blob string, reserved_pos int) {
 
 	rlog.Debugf("Mining block will give reward to %s", miner_address)
-	_, bl = chain.Create_new_miner_block(miner_address)
-
+    cache_block_mutex.Lock()
+    defer cache_block_mutex.Unlock()
+    if cache_block.Timestamp < (uint64(uint64(time.Now().UTC().Unix()))) ||  (cache_block.Timestamp > 0 && int64(cache_block.Miner_TX.Vin[0].(transaction.Txin_gen).Height) != chain.Get_Height()+1)  {
+        _, bl = chain.Create_new_miner_block(miner_address)
+        cache_block = bl // setup cache for 1 sec
+    }else{
+       var err error
+       bl = cache_block
+        bl.Miner_TX, err = Create_Miner_TX2(int64(bl.Major_Version), int64(bl.Miner_TX.Vin[0].(transaction.Txin_gen).Height), miner_address)
+        if err != nil {
+                logger.Warnf("Error while creating miner block, err %s", err)
+        }
+    }
 	blockhashing_blob = fmt.Sprintf("%x", bl.GetBlockWork())
 
 	// block template is all the parts of the block in dismantled form
@@ -348,6 +360,10 @@ func (chain *Blockchain) Accept_new_block(block_template []byte, blockhashing_bl
 		duplicate_height_check[bl.Miner_TX.Vin[0].(transaction.Txin_gen).Height] = true
 
 		logger.Infof("Block %s successfully accepted at height %d, Notifying Network", bl.GetHash(), chain.Load_Height_for_BL_ID(nil, bl.GetHash()))
+        cache_block_mutex.Lock()
+        defer cache_block_mutex.Unlock()
+        bl.Timestamp = 0  // expire cache block
+
 		if !chain.simulator { // if not in simulator mode, relay block to the chain
 			chain.P2P_Block_Relayer(cbl, 0) // lets relay the block to network
 		}

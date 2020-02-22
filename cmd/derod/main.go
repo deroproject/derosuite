@@ -45,7 +45,7 @@ import "github.com/deroproject/derosuite/p2p"
 import "github.com/deroproject/derosuite/globals"
 import "github.com/deroproject/derosuite/block"
 import "github.com/deroproject/derosuite/config"
-import "github.com/deroproject/derosuite/address"
+//import "github.com/deroproject/derosuite/address"
 import "github.com/deroproject/derosuite/blockchain"
 import "github.com/deroproject/derosuite/transaction"
 
@@ -221,7 +221,7 @@ func main() {
 
 			globals.Logger.Infof("System will mine to %s with %d threads. Good Luck!!", globals.Arguments["--mining-address"].(string), thread_count)
 
-			go start_miner(chain, params["mining-address"].(*address.Address), thread_count)
+	//		go start_miner(chain, params["mining-address"].(*address.Address), thread_count)
 		}
 
 	}
@@ -455,7 +455,7 @@ func main() {
 				continue
 			}
 			if err := pprof.StartCPUProfile(cpufile); err != nil {
-				globals.Logger.Warnf("could not start CPU profile: ", err)
+				globals.Logger.Warnf("could not start CPU profile: %s ", err)
 			}
 			globals.Logger.Infof("CPU profiling will be available after program shutsdown")
 			defer pprof.StopCPUProfile()
@@ -550,7 +550,7 @@ func main() {
 		case command == "version":
 			fmt.Printf("Version %s OS:%s ARCH:%s \n", config.Version.String(), runtime.GOOS, runtime.GOARCH)
 
-		case command == "start_mining": // it needs 2 parameters, one dero address, second number of threads
+		case command == "start_mining_legacy": // it needs 2 parameters, one dero address, second number of threads
 			if mining {
 				fmt.Printf("Mining is already started\n")
 				continue
@@ -975,7 +975,7 @@ func usage(w io.Writer) {
 	io.WriteString(w, "\t\033[1mprint_height\033[0m\tPrint local blockchain height\n")
 	io.WriteString(w, "\t\033[1mprint_tx\033[0m\tPrint transaction, print_tx <transaction_hash>\n")
 	io.WriteString(w, "\t\033[1mstatus\033[0m\t\tShow general information\n")
-	io.WriteString(w, "\t\033[1mstart_mining\033[0m\tStart mining <dero address> <number of threads>\n")
+//	io.WriteString(w, "\t\033[1mstart_mining\033[0m\tStart mining <dero address> <number of threads>\n")
 	io.WriteString(w, "\t\033[1mstop_mining\033[0m\tStop daemon mining\n")
 	io.WriteString(w, "\t\033[1mpeer_list\033[0m\tPrint peer list\n")
 	io.WriteString(w, "\t\033[1msync_info\033[0m\tPrint information about connected peers and their state\n")
@@ -1016,8 +1016,8 @@ var completer = readline.NewPrefixCompleter(
 		readline.PcItem("sleep"),
 	*/
 	readline.PcItem("diff"),
-	readline.PcItem("dev_verify_pool"),
-	readline.PcItem("dev_verify_chain_doublespend"),
+//	readline.PcItem("dev_verify_pool"),
+//	readline.PcItem("dev_verify_chain_doublespend"),
 	readline.PcItem("mempool_flush"),
 	readline.PcItem("mempool_delete_tx"),
 	readline.PcItem("mempool_print"),
@@ -1027,8 +1027,8 @@ var completer = readline.NewPrefixCompleter(
 	readline.PcItem("print_height"),
 	readline.PcItem("print_tx"),
 	readline.PcItem("status"),
-	readline.PcItem("start_mining"),
-	readline.PcItem("stop_mining"),
+//	readline.PcItem("start_mining"),
+//	readline.PcItem("stop_mining"),
 	readline.PcItem("sync_info"),
 	readline.PcItem("version"),
 	readline.PcItem("bye"),

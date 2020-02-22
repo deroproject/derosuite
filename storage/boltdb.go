@@ -62,7 +62,7 @@ func (b *BoltStore) Init(params map[string]interface{}) (err error) {
 
 	options := &bolt.Options{InitialMmapSize :1 * 1024 * 1024 * 1024}
 	if runtime.GOOS != "windows" && strconv.IntSize == 64 {
-		options.InitialMmapSize *= 40 // default allocation 40 GB
+		options.InitialMmapSize *= 80 // default allocation 80 GB
 	}else{
 		options.InitialMmapSize = 0 // on windows, make it 0	
 	}

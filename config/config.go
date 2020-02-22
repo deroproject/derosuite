@@ -27,6 +27,7 @@ import "github.com/deroproject/derosuite/crypto"
 // by that time, networking,space requirements  and cryptonote tx processing requiremtn will probably outgrow homeusers
 // since most mining nodes will be running in datacenter, 3 secs  blocks c
 const BLOCK_TIME = uint64(12)
+const BLOCK_TIME_hf4 = uint64(27)
 
 // we are ignoring leap seconds from calculations
 
@@ -82,15 +83,15 @@ const MAX_MIXIN = 14 // <= 13,   14th will rejected
 // ATLANTIS FEE calculation constants are here
 const FEE_PER_KB = uint64(1000000000) // .001 dero per kb
 
-// mainnet botstraps at 200 MH
-//const MAINNET_BOOTSTRAP_DIFFICULTY = uint64(200 *  1000* 1000 * BLOCK_TIME)
-const MAINNET_BOOTSTRAP_DIFFICULTY = uint64(200 *1000*1000 * BLOCK_TIME)
-const MAINNET_MINIMUM_DIFFICULTY = uint64(1000*1000 * BLOCK_TIME) // 2KH
+
+const MAINNET_BOOTSTRAP_DIFFICULTY = uint64(200 *1000*1000 * BLOCK_TIME) // atlantis mainnet botstrapped at 200 MH/s
+const MAINNET_BOOTSTRAP_DIFFICULTY_hf4 = uint64(50*1000 * BLOCK_TIME_hf4) // astrobwt mainnet boot strap at 50KH/s
+const MAINNET_MINIMUM_DIFFICULTY = uint64(5* 1000 * BLOCK_TIME_hf4) // 5 KH/s
 
 // testnet bootstraps at 1 MH
 //const  TESTNET_BOOTSTRAP_DIFFICULTY = uint64(1000*1000*BLOCK_TIME)
-const TESTNET_BOOTSTRAP_DIFFICULTY = uint64(800 * BLOCK_TIME) // testnet bootstrap at 800 H/s
-const TESTNET_MINIMUM_DIFFICULTY = uint64(800 * BLOCK_TIME) // 800 H
+const TESTNET_BOOTSTRAP_DIFFICULTY = uint64(1600 * BLOCK_TIME_hf4) // testnet bootstrap at 800 H/s
+const TESTNET_MINIMUM_DIFFICULTY = uint64(800 * BLOCK_TIME_hf4) // 800 H
 
 
 // this single parameter controls lots of various parameters
@@ -146,7 +147,7 @@ var Mainnet = CHAIN_CONFIG{Name: "mainnet",
 }
 
 var Testnet = CHAIN_CONFIG{Name: "testnet", // testnet will always have last 3 bytes 0
-	Network_ID:                       uuid.FromBytesOrNil([]byte{0x59, 0xd7, 0xf7, 0xe9, 0xdd, 0x48, 0xd5, 0xfd, 0x13, 0x0a, 0xf6, 0xe0, 0x9a, 0x04, 0x00, 0x00}),
+	Network_ID:                       uuid.FromBytesOrNil([]byte{0x59, 0xd7, 0xf7, 0xe9, 0xdd, 0x48, 0xd5, 0xfd, 0x13, 0x0a, 0xf6, 0xe0, 0x9a, 0x08, 0x00, 0x00}),
 	Public_Address_Prefix:            0x6cf58, // for dETo 446296
 	Public_Address_Prefix_Integrated: 0x44f58, // for dETi 282456
 	P2P_Default_Port:                 30303,

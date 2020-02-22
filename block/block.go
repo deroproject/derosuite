@@ -30,6 +30,7 @@ import "github.com/romana/rlog"
 import "github.com/deroproject/derosuite/crypto"
 
 //import "github.com/deroproject/derosuite/config"
+import "github.com/deroproject/derosuite/astrobwt"
 import "github.com/deroproject/derosuite/cryptonight"
 import "github.com/deroproject/derosuite/transaction"
 
@@ -138,9 +139,14 @@ func (bl *Block) ClearNonce() {
 func (bl *Block) GetPoWHash() (hash crypto.Hash) {
 	long_header := bl.GetBlockWork()
 	rlog.Tracef(9, "longheader %x\n", long_header)
-	tmphash := cryptonight.SlowHash(long_header)
-	//   tmphash := crypto.Scrypt_1024_1_1_256(long_header)
-	copy(hash[:], tmphash[:32])
+
+    if bl.Major_Version <=3 { // HF 1 to 3 use crypto night
+	    tmphash := cryptonight.SlowHash(long_header)
+	    copy(hash[:], tmphash[:32])
+    }else{
+        tmphash := astrobwt.POW_0alloc(long_header) // new astrobwt algorithm
+	    copy(hash[:], tmphash[:32])
+    }
 
 	return
 }

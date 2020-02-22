@@ -432,7 +432,7 @@ func Broadcast_Block(cbl *block.Complete_Block, PeerID uint64) { // if peerid is
 
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Warnf("Recovered while broadcasting Block, Stack trace below", r)
+			logger.Warnf("Recovered while broadcasting Block, Stack trace below %+v", r)
 			logger.Warnf("Stack trace  \n%s", debug.Stack())
 		}
 	}()
@@ -539,7 +539,7 @@ func Broadcast_Tx(tx *transaction.Transaction, PeerID uint64) (relayed_count int
 
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Warnf("Recovered while broadcasting TX, Stack trace below", r)
+			logger.Warnf("Recovered while broadcasting TX, Stack trace below %+v", r)
 			logger.Warnf("Stack trace  \n%s", debug.Stack())
 		}
 	}()
@@ -638,7 +638,7 @@ func trigger_sync() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Warnf("Recovered while triggering sync, Stack trace below", r)
+			logger.Warnf("Recovered while triggering sync, Stack trace below %+v ", r)
 			logger.Warnf("Stack trace  \n%s", debug.Stack())
 		}
 	}()

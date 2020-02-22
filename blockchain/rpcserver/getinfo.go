@@ -51,7 +51,7 @@ func (h GetInfo_Handler) ServeJSONRPC(c context.Context, params *fastjson.RawMes
 	result.Status = "OK"
 	result.Version = config.Version.String()
 	result.Top_block_hash = blid.String()
-	result.Target = config.BLOCK_TIME
+	result.Target = chain.Get_Current_BlockTime()
 
 	if result.TopoHeight > 50 {
 		blid50, err := chain.Load_Block_Topological_order_at_index(nil, result.TopoHeight-50)
