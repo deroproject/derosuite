@@ -119,7 +119,7 @@ Wallet RPC Default Port: 30309
 #### DERO Installation
 &nbsp; &nbsp; &nbsp; &nbsp; DERO is written in golang and very easy to install both from source and binary. 
 #### Installation From Source
-1. Install Golang, minimum Golang 1.10.3 required.  
+1. Install Golang, Golang version 1.12.12 required.  
 1. In go workspace: ```go get -u github.com/deroproject/derosuite/...```  
 1. Check go workspace bin folder for binaries. 
 1. For example on Linux machine following binaries will be created:
