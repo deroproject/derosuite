@@ -468,6 +468,8 @@ func mineblock() {
 	runtime.LockOSThread()
 	threadaffinity()
 
+    iterations_per_loop := uint32(31.0 * float32(astrobwt.MAX_LENGTH) / float32(max_pow_size)) 
+
 	for {
 		mutex.RLock()
 		myjob := job
@@ -481,7 +483,7 @@ func mineblock() {
 		n, err := hex.Decode(work[:], []byte(myjob.Blockhashing_blob))
 		if err != nil || n != 76 {
 			time.Sleep(time.Second)
-			globals.Logger.Errorf("Blockwork could not decoded successfully (%s) , err:%s n:%d", myjob.Blockhashing_blob, err, n)
+			globals.Logger.Errorf("Blockwork could not decoded successfully (%s) , err:%s n:%d %+v", myjob.Blockhashing_blob, err, n, myjob)
 			continue
 		}
 
@@ -514,7 +516,7 @@ func mineblock() {
 				}
 			}
 		} else {
-			for i := uint32(0); i < 32; i++ {
+			for i := uint32(0); i < iterations_per_loop; i++ {
 				binary.BigEndian.PutUint32(nonce_buf, i)
 				//pow := astrobwt.POW_0alloc(work[:])
 				pow, success := astrobwt.POW_optimized_v1(work[:],max_pow_size)
@@ -550,10 +552,10 @@ func usage(w io.Writer) {
 	//io.WriteString(w, completer.Tree("    "))
 	io.WriteString(w, "\t\033[1mhelp\033[0m\t\tthis help\n")
 	io.WriteString(w, "\t\033[1mstatus\033[0m\t\tShow general information\n")
-	io.WriteString(w, "\t\033[1mbye\033[0m\t\tQuit the daemon\n")
+	io.WriteString(w, "\t\033[1mbye\033[0m\t\tQuit the miner\n")
 	io.WriteString(w, "\t\033[1mversion\033[0m\t\tShow version\n")
-	io.WriteString(w, "\t\033[1mexit\033[0m\t\tQuit the daemon\n")
-	io.WriteString(w, "\t\033[1mquit\033[0m\t\tQuit the daemon\n")
+	io.WriteString(w, "\t\033[1mexit\033[0m\t\tQuit the miner\n")
+	io.WriteString(w, "\t\033[1mquit\033[0m\t\tQuit the miner\n")
 
 }
 

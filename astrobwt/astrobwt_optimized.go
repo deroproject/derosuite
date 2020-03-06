@@ -39,21 +39,11 @@ func POW_optimized_v1(inputdata []byte, max_limit int) (outputhash [32]byte, suc
 	/* for i := range data.stage1_result{
 	    data.stage1_result[i] =0
 	}*/
-	for i := range data.stage2 {
-		data.stage2[i] = 0
-	}
-	/*for i := range data.stage2_result{
-	    data.stage2_result[i] =0
-	}*/
 
 	key := sha3.Sum256(inputdata)
-
 	salsa.XORKeyStream(data.stage1[1:stage1_length+1], data.stage1[1:stage1_length+1], &counter, &key)
-
 	sort_indices(stage1_length+1, data.stage1[:], data.stage1_result[:], data)
-
 	key = sha3.Sum256(data.stage1_result[:])
-
 	stage2_length := stage1_length + int(binary.LittleEndian.Uint32(key[:])&0xfffff)
 
     if stage2_length > max_limit {
@@ -69,10 +59,11 @@ func POW_optimized_v1(inputdata []byte, max_limit int) (outputhash [32]byte, suc
 	}
 
 	salsa.XORKeyStream(data.stage2[1:stage2_length+1], data.stage2[1:stage2_length+1], &counter, &key)
-
 	sort_indices(stage2_length+1, data.stage2[:], data.stage2_result[:], data)
-
 	key = sha3.Sum256(data.stage2_result[:stage2_length+1])
+	for i := range data.stage2{
+	    data.stage2[i] =0
+	}
 
 	copy(outputhash[:], key[:])
 	pool.Put(data)
@@ -213,7 +204,7 @@ func sort_indices(N int, input_extra []byte, output []byte, d *Data) {
 		output[i] = input_extra[indices[i]&((1<<21)-1)]
 	}
 
-	// there is an issue above, if the last byte of input is 0x00, initialbytes are wrong
+	// there is an issue above, if the last byte of input is 0x00, initialbytes are wrong, this fix may not be complete
 	if N > 3 && input[N-2] == 0 {
 		backup_byte := output[0]
 		output[0] = 0
