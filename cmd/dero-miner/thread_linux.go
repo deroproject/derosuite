@@ -1,5 +1,3 @@
-//+build !windows
-
 package main
 
 import "runtime"
@@ -22,11 +20,11 @@ func threadaffinity() {
 	unix.SchedSetaffinity(0, &cpuset)
 }
 
-func  avoidHT( i int ) int {
-        count := runtime.GOMAXPROCS(0)
-        if i < count/2 {
-         return i*2
-        }else{
-         return (i-count/2)*2+1
-        }
+func avoidHT(i int) int {
+	count := runtime.GOMAXPROCS(0)
+	if i < count/2 {
+		return i * 2
+	} else {
+		return (i-count/2)*2 + 1
+	}
 }

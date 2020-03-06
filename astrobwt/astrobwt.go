@@ -1,4 +1,4 @@
-package  astrobwt
+package astrobwt
 
 //import "fmt"
 import "strings"
@@ -24,45 +24,44 @@ func Transform(s []byte, es byte) ([]byte, error) {
 // InverseTransform reverses the bwt to original byte slice. Not optimized yet.
 func InverseTransform(t []byte, es byte) []byte {
 
-    le := len(t)
-    table := make([]string, le)
-    for range table {
-        for i := 0; i < le; i++ {
-            table[i] = string(t[i:i+1]) + table[i]
-        }
-        sort.Strings(table)
-    }
-    for _, row := range table {
-        if strings.HasSuffix(row, "$") {
-            return []byte(row[ : le-1])
-        }
-    }
-    return []byte("")
-
-
-/*
-	n := len(t)
-	lines := make([][]byte, n)
-	for i := 0; i < n; i++ {
-		lines[i] = make([]byte, n)
-	}
-
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
-			lines[j][n-1-i] = t[j]
+	le := len(t)
+	table := make([]string, le)
+	for range table {
+		for i := 0; i < le; i++ {
+			table[i] = string(t[i:i+1]) + table[i]
 		}
-		sort.Sort(byteutil.SliceOfByteSlice(lines))
+		sort.Strings(table)
 	}
-
-	s := make([]byte, n-1)
-	for _, line := range lines {
-		if line[n-1] == es {
-			s = line[0 : n-1]
-			break
+	for _, row := range table {
+		if strings.HasSuffix(row, "$") {
+			return []byte(row[:le-1])
 		}
 	}
-	return s
-*/
+	return []byte("")
+
+	/*
+		n := len(t)
+		lines := make([][]byte, n)
+		for i := 0; i < n; i++ {
+			lines[i] = make([]byte, n)
+		}
+
+		for i := 0; i < n; i++ {
+			for j := 0; j < n; j++ {
+				lines[j][n-1-i] = t[j]
+			}
+			sort.Sort(byteutil.SliceOfByteSlice(lines))
+		}
+
+		s := make([]byte, n-1)
+		for _, line := range lines {
+			if line[n-1] == es {
+				s = line[0 : n-1]
+				break
+			}
+		}
+		return s
+	*/
 }
 
 // SuffixArray returns the suffix array of s.
@@ -117,7 +116,7 @@ func BWT(input []byte) ([]byte, int) {
 }
 
 const stage1_length int = 147253 // it is a prime
-const max_length int = 1024*1024 + stage1_length + 1024
+const MAX_LENGTH int = 1024*1024 + stage1_length + 1024
 
 func POW(inputdata []byte) (outputhash [32]byte) {
 
@@ -126,7 +125,7 @@ func POW(inputdata []byte) (outputhash [32]byte) {
 	key := sha3.Sum256(inputdata)
 
 	var stage1 [stage1_length]byte                    // stages are taken from it
-	var stage2 [1024*1024 + stage1_length + 1024]byte // it will always be less than 1 MB  0x7fff * 31 + stage1_length
+	var stage2 [1024*1024 + stage1_length + 1024]byte   
 
 	salsa.XORKeyStream(stage1[:stage1_length], stage1[:stage1_length], &counter, &key)
 
@@ -149,7 +148,7 @@ func POW(inputdata []byte) (outputhash [32]byte) {
 
 	//fmt.Printf("result %x\n", key)
 
-   	copy(outputhash[:],key[:])
+	copy(outputhash[:], key[:])
 
 	_ = eos
 	return
@@ -192,13 +191,13 @@ func POW_0alloc(inputdata []byte) (outputhash [32]byte) {
 
 	var counter [16]byte
 
-	var sa [max_length]int32
+	var sa [MAX_LENGTH]int32
 	// var bwt [max_length]int32
 
 	var stage1 [stage1_length]byte // stages are taken from it
 	var stage1_result [stage1_length + 1]byte
-	var stage2 [1024*1024 + stage1_length+1]byte // it will always be less than 1 MB  0x7fff * 31 + stage1_length
-	var stage2_result [1024*1024 + stage1_length+1]byte
+	var stage2 [1024*1024 + stage1_length + 1]byte 
+	var stage2_result [1024*1024 + stage1_length + 1]byte
 
 	key := sha3.Sum256(inputdata)
 
@@ -221,10 +220,10 @@ func POW_0alloc(inputdata []byte) (outputhash [32]byte) {
 	}
 
 	eos = BWT_0alloc(stage2[:stage2_length], sa[:stage2_length+1], stage2_result[:stage2_length+1])
-    _ = eos
+	_ = eos
 
 	key = sha3.Sum256(stage2_result[:stage2_length+1])
 
-	copy(outputhash[:],key[:])
+	copy(outputhash[:], key[:])
 	return
 }

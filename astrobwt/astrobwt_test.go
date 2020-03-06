@@ -1,4 +1,4 @@
-package  astrobwt
+package astrobwt
 
 import "math/rand"
 import "testing"
@@ -14,6 +14,7 @@ func TestBWTAndInverseTransform(t *testing.T) {
 		{"abracadabra", "ard$rcaaaabb"},
 		{"appellee", "e$elplepa"},
 		{"GATGCGAGAGATG", "GGGGGGTCAA$TAA"},
+		{"abcdefg", "g$abcdef"},
 	}
 
 	for _, test := range tests {
@@ -21,10 +22,10 @@ func TestBWTAndInverseTransform(t *testing.T) {
 		trans2[eos] = '$'
 
 		if string(trans2) != test.bwt {
-			t.Error("Test failed: Transform")
+			t.Errorf("Test failed: Transform %s", test.input)
 		}
 		if string(InverseTransform([]byte(trans2), '$')) != test.input {
-			t.Errorf("Test failed: InverseTransform  expected '%s' actual '%s`", test.input,string(InverseTransform([]byte(trans2), '$')) )
+			t.Errorf("Test failed: InverseTransform  expected '%s' actual '%s`", test.input, string(InverseTransform([]byte(trans2), '$')))
 		}
 
 		p := POW([]byte(test.input))

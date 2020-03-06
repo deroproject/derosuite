@@ -24,7 +24,6 @@ import "github.com/deroproject/derosuite/globals"
 import "github.com/deroproject/derosuite/crypto"
 import "github.com/deroproject/derosuite/astrobwt"
 import "github.com/deroproject/derosuite/structures"
-import "github.com/deroproject/derosuite/blockchain"
 import "github.com/deroproject/derosuite/cryptonight"
 
 import log "github.com/sirupsen/logrus"
@@ -40,7 +39,8 @@ var mutex sync.RWMutex
 var job structures.GetBlockTemplate_Result
 var maxdelay int = 10000
 var threads int
-var iterations int = 20
+var iterations int = 100
+var max_pow_size int = astrobwt.MAX_LENGTH
 var wallet_address string
 var daemon_rpc_address string
 
@@ -57,8 +57,8 @@ ONE CPU, ONE VOTE.
 http://wiki.dero.io
 
 Usage:
-  dero-miner  --wallet-address=<wallet_address> [--daemon-rpc-address=<http://127.0.0.1:20206>] [--mining-threads=<threads>] [--testnet] [--debug]
-  dero-miner --bench
+  dero-miner  --wallet-address=<wallet_address> [--daemon-rpc-address=<http://127.0.0.1:20206>] [--mining-threads=<threads>] [--max-pow-size=1120] [--testnet] [--debug]
+  dero-miner --bench [--max-pow-size=1120]
   dero-miner -h | --help
   dero-miner --version
 
@@ -69,6 +69,7 @@ Options:
   --daemon-rpc-address=<http://127.0.0.1:20206>    Miner will connect to daemon RPC on this port.
   --wallet-address=<wallet_address>    This address is rewarded when a block is mined sucessfully.
   --mining-threads=<threads>         Number of CPU threads for mining [default: ` + fmt.Sprintf("%d", runtime.GOMAXPROCS(0)) + `]
+  --max-pow-size=1120          Max amount of PoW size in KiB to mine, some older/newer cpus can increase their work
 
 Example Mainnet: ./dero-miner-linux-amd64 --wallet-address dERoXHjNHFBabzBCQbBDSqbkLURQyzmPRCLfeFtzRQA3NgVfU4HDbRpZQUKBzq59QU2QLcoAviYQ59FG4bu8T9pZ1woERqciSL --daemon-rpc-address=http://explorer.dero.io:20206 
 Example Testnet: ./dero-miner-linux-amd64 --wallet-address dEToYsDQtFoabzBCQbBDSqbkLURQyzmPRCLfeFtzRQA3NgVfU4HDbRpZQUKBzq59QU2QLcoAviYQ59FG4bu8T9pZ1woEQQstVq --daemon-rpc-address=http://127.0.0.1:30306 
@@ -111,6 +112,9 @@ func main() {
 	// all screen output must go through the readline
 	globals.Logger.Out = l.Stdout()
 
+	os.Setenv("RLOG_LOG_LEVEL", "INFO")
+	rlog.UpdateEnv()
+
 	rlog.Infof("Arguments %+v", globals.Arguments)
 
 	globals.Logger.Infof("DERO Atlantis AstroBWT miner :  It is an alpha version, use it for testing/evaluations purpose only.")
@@ -149,14 +153,23 @@ func main() {
 			globals.Logger.Fatalf("Mining threads (%d) is more than available CPUs (%d). This is NOT optimal", threads, runtime.GOMAXPROCS(0))
 		}
 	}
+    if globals.Arguments["--max-pow-size"] != nil {
+		if s, err := strconv.Atoi(globals.Arguments["--max-pow-size"].(string)); err == nil && s > 200 && s < 100000 {
+			max_pow_size = s*1024
+		} else {
+			globals.Logger.Fatalf("max-pow-size argument cannot be parsed: err %s", err)
+		}
+	}
+    globals.Logger.Infof("max-pow-size limited to %d bytes. Good Luck!!", max_pow_size)
 
 	if globals.Arguments["--bench"].(bool) {
 
 		var wg sync.WaitGroup
 
 		fmt.Printf("%20s %20s %20s %20s %20s \n", "Threads", "Total Time", "Total Iterations", "Time/PoW ", "Hash Rate/Sec")
-		iterations = 100
+		iterations = 500
 		for bench := 1; bench <= threads; bench++ {
+			processor = 0
 			now := time.Now()
 			for i := 0; i < bench; i++ {
 				wg.Add(1)
@@ -218,7 +231,6 @@ func main() {
 
 			best_height, best_topo_height := int64(0), int64(0)
 			peer_count := uint64(0)
-			topo_height := int64(0)
 
 			mempool_tx_count := 0
 
@@ -276,7 +288,7 @@ func main() {
 					testnet_string = "\033[31m TESTNET"
 				}
 
-				l.SetPrompt(fmt.Sprintf("\033[1m\033[32mDERO Miner: \033[0m"+color+"%d/%d "+pcolor+" FOUND_BLOCKS %d \033[32mNW %s %s>%s>>\033[0m ", our_height, topo_height, block_counter, hash_rate_string, mining_string, testnet_string))
+				l.SetPrompt(fmt.Sprintf("\033[1m\033[32mDERO Miner: \033[0m"+color+"Height %d "+pcolor+" FOUND_BLOCKS %d \033[32mNW %s %s>%s>>\033[0m ", our_height,  block_counter, hash_rate_string, mining_string, testnet_string))
 				l.Refresh()
 				last_our_height = our_height
 				last_best_height = best_height
@@ -363,41 +375,6 @@ func main() {
 	<-Exit_In_Progress
 
 	return
-	/*
-
-		if *bench_ptr {
-
-			fmt.Printf("%20s %20s %20s %20s %20s \n", "Threads", "Total Time", "Total Iterations", "Time/PoW ", "Hash Rate/Sec")
-			for bench := 1; bench <= threads; bench++ {
-				now := time.Now()
-				for i := 0; i < bench; i++ {
-					wg.Add(1)
-					go random_execution(&wg, iterations)
-				}
-				wg.Wait()
-				duration := time.Now().Sub(now)
-
-				fmt.Printf("%20s %20s %20s %20s %20s \n", fmt.Sprintf("%d", bench), fmt.Sprintf("%s", duration), fmt.Sprintf("%d", bench*iterations),
-					fmt.Sprintf("%s", duration/time.Duration(bench*iterations)), fmt.Sprintf("%.1f", float32(time.Second)/(float32(duration/time.Duration(bench*iterations)))))
-
-			}
-
-		} else {
-			fmt.Printf("Starting %d threads\n", threads)
-			now := time.Now()
-			for i := 0; i < threads; i++ {
-				wg.Add(1)
-				go random_execution(&wg, iterations)
-			}
-			wg.Wait()
-			duration := time.Now().Sub(now)
-			fmt.Printf("Total iterations %d ( per thread %d)\n", threads*iterations, iterations)
-			fmt.Printf("Total time %s\n", duration)
-			fmt.Printf("time per PoW (avg) %s\n", duration/time.Duration(threads*iterations))
-
-			// now we should get the job and
-		}
-	*/
 
 }
 
@@ -405,13 +382,19 @@ func random_execution(wg *sync.WaitGroup, iterations int) {
 	var workbuf [255]byte
 
 	runtime.LockOSThread()
+	//threadaffinity()
 
 	for i := 0; i < iterations; i++ {
 		rand.Read(workbuf[:])
 		//astrobwt.POW(workbuf[:])
-		astrobwt.POW_0alloc(workbuf[:])
+		//astrobwt.POW_0alloc(workbuf[:])
+		_,success := astrobwt.POW_optimized_v1(workbuf[:], max_pow_size)
+        if !success{
+            i--
+        }
 	}
 	wg.Done()
+	runtime.UnlockOSThread()
 }
 
 func increase_delay() {
@@ -514,7 +497,7 @@ func mineblock() {
 				pow := cryptonight.SlowHash(work[:])
 				copy(powhash[:], pow[:])
 
-				if blockchain.CheckPowHashBig(powhash, &diff) == true {
+				if CheckPowHashBig(powhash, &diff) == true {
 					globals.Logger.Infof("Successfully found DERO block at difficulty:%d", myjob.Difficulty)
 					maxdelay = 200
 					block_counter++
@@ -531,14 +514,18 @@ func mineblock() {
 				}
 			}
 		} else {
-			for i := uint32(0); i < 20; i++ {
-				atomic.AddUint64(&counter, 1)
+			for i := uint32(0); i < 32; i++ {
 				binary.BigEndian.PutUint32(nonce_buf, i)
-				pow := astrobwt.POW_0alloc(work[:])
+				//pow := astrobwt.POW_0alloc(work[:])
+				pow, success := astrobwt.POW_optimized_v1(work[:],max_pow_size)
+                if !success {
+                    continue
+                }
+                atomic.AddUint64(&counter, 1)
 				copy(powhash[:], pow[:])
 
-				if blockchain.CheckPowHashBig(powhash, &diff) == true {
-					globals.Logger.Infof("Successfully found DERO block astroblock at difficulty:%d powhash %s", myjob.Difficulty, powhash)
+				if CheckPowHashBig(powhash, &diff) == true {
+					globals.Logger.Infof("Successfully found DERO block astroblock at difficulty:%d  at height %d", myjob.Difficulty, myjob.Height)
 					maxdelay = 200
 
 					block_counter++
