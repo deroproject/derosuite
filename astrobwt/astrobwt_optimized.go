@@ -29,10 +29,16 @@ type Data struct {
 var pool = sync.Pool{New: func() interface{} { return &Data{} }}
 
 func POW_optimized_v1(inputdata []byte, max_limit int) (outputhash [32]byte, success bool) {
+	data := pool.Get().(*Data)
+	outputhash, success = POW_optimized_v2(inputdata,max_limit,data)
+	pool.Put(data)
+	return
+}
+func POW_optimized_v2(inputdata []byte, max_limit int, data *Data) (outputhash [32]byte, success bool) {
 
 	var counter [16]byte
 
-	data := pool.Get().(*Data)
+
 	for i := range data.stage1 {
 		data.stage1[i] = 0
 	}
@@ -66,7 +72,6 @@ func POW_optimized_v1(inputdata []byte, max_limit int) (outputhash [32]byte, suc
 	}
 
 	copy(outputhash[:], key[:])
-	pool.Put(data)
     success = true
 	return
 }

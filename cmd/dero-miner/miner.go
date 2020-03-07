@@ -40,7 +40,7 @@ var job structures.GetBlockTemplate_Result
 var maxdelay int = 10000
 var threads int
 var iterations int = 100
-var max_pow_size int = astrobwt.MAX_LENGTH
+var max_pow_size int = 819200 //astrobwt.MAX_LENGTH
 var wallet_address string
 var daemon_rpc_address string
 
@@ -365,7 +365,7 @@ func main() {
 			fallthrough
 		case strings.ToLower(line) == "quit":
 			close(Exit_In_Progress)
-			os.Exit(0)
+    		os.Exit(0)
 		case line == "":
 		default:
 			log.Println("you said:", strconv.Quote(line))
@@ -470,6 +470,7 @@ func mineblock() {
 
     iterations_per_loop := uint32(31.0 * float32(astrobwt.MAX_LENGTH) / float32(max_pow_size)) 
 
+    var data astrobwt.Data
 	for {
 		mutex.RLock()
 		myjob := job
@@ -519,7 +520,7 @@ func mineblock() {
 			for i := uint32(0); i < iterations_per_loop; i++ {
 				binary.BigEndian.PutUint32(nonce_buf, i)
 				//pow := astrobwt.POW_0alloc(work[:])
-				pow, success := astrobwt.POW_optimized_v1(work[:],max_pow_size)
+				pow, success := astrobwt.POW_optimized_v2(work[:],max_pow_size,&data)
                 if !success {
                     continue
                 }

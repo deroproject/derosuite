@@ -20,4 +20,4 @@ import "github.com/blang/semver"
 
 // right now it has to be manually changed
 // do we need to include git commitsha??
-var Version = semver.MustParse("2.2.0-4.Atlantis.Astrobwt+05032020")
+var Version = semver.MustParse("2.2.0-5.Atlantis.Astrobwt+07032020")
