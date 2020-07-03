@@ -99,7 +99,7 @@ func (connection *Connection) Handle_ChainRequest(buf []byte) {
 		return
 	}
 
-	if len(request.Block_list) != len(request.TopoHeights) {
+	if len(request.Block_list) != len(request.TopoHeights) || len(request.Block_list) > 1024 {
 		rlog.Warnf("Peer chain request has %d block %d topos, therefore invalid", len(request.Block_list), len(request.TopoHeights))
 		connection.Exit()
 		return

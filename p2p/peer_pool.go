@@ -118,11 +118,17 @@ func clean_up() {
 	peer_mutex.Lock()
 	defer peer_mutex.Unlock()
 	for k, v := range peer_map {
-		if v.FailCount >= 16 { // roughly 16 tries, 18 hrs before we discard the peer
+		if v.FailCount >= 8 { // roughly 16 tries, 18 hrs before we discard the peer
 			delete(peer_map, k)
 		}
-	}
+        if v.LastConnected == 0 { // if never connected, purge the peer
+            delete(peer_map, k)
+        }
 
+        if uint64(time.Now().UTC().Unix())  > ( v.LastConnected + 42000) { // purge all peers which were not connected in
+             delete(peer_map, k)
+        }
+	}
 }
 
 // check whether an IP is in the map already
@@ -147,6 +153,7 @@ func GetPeerInList(address string) *Peer {
 
 // add connection to  map
 func Peer_Add(p *Peer) {
+    clean_up();
 	peer_mutex.Lock()
 	defer peer_mutex.Unlock()
 

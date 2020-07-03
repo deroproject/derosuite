@@ -62,7 +62,7 @@ func (connection *Connection) Handle_ChainResponse(buf []byte) {
 	}
 
 	// we were expecting something else ban
-	if len(response.Block_list) < 1 {
+	if len(response.Block_list) < 1 || len(response.TopBlocks) > 100 {
 		rlog.Warnf("Malformed chain response  %s", err, connection.logid)
 		connection.Exit()
 		return

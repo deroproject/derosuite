@@ -181,7 +181,9 @@ func (connection *Connection) Handle_Handshake(buf []byte) {
 	// parse delivered peer list as grey list
 	rlog.Debugf("Peer provides %d peers", len(handshake.PeerList))
 	for i := range handshake.PeerList {
-		Peer_Add(&Peer{Address: handshake.PeerList[i].Addr})
+        if i < 13 {
+		    Peer_Add(&Peer{Address: handshake.PeerList[i].Addr})
+        }
 	}
 
 	atomic.StoreUint32(&connection.State, ACTIVE)
