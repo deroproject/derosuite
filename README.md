@@ -1,5 +1,5 @@
 ### Welcome to the Dero Project
-[DERO News](https://github.com/deroproject/deronews) [Explorer](https://explorer.dero.io) [Source](https://github.com/deroproject/derosuite) [Twitter](https://twitter.com/DeroProject) [Discord](https://discord.gg/H95TJDp) [Wiki](https://wiki.dero.io) [Github](https://github.com/deroproject/derosuite) [Stats](http://network.dero.io) [WebWallet](https://wallet.dero.io/) 
+[DERO News](https://github.com/deroproject/deronews) [Forum](https://forum.dero.io) [Wiki](https://wiki.dero.io) [Explorer](https://explorer.dero.io) [Source](https://github.com/deroproject/derosuite) [Twitter](https://twitter.com/DeroProject) [Discord](https://discord.gg/H95TJDp)  [Github](https://github.com/deroproject/derosuite) [Stats](http://network.dero.io) [WebWallet](https://wallet.dero.io/) [Medium](https://medium.com/deroproject)
 
 
 ### Table of Contents
