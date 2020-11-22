@@ -1,5 +1,5 @@
 ### Welcome to the Dero Project
-[Explorer](https://explorer.dero.io) [Source](https://github.com/deroproject/derosuite) [Twitter](https://twitter.com/DeroProject) [Discord](https://discord.gg/H95TJDp) [Wiki](https://wiki.dero.io) [Github](https://github.com/deroproject/derosuite) [Stats](http://network.dero.io) [WebWallet](https://wallet.dero.io/) 
+[DERO News](https://github.com/deroproject/deronews) [Explorer](https://explorer.dero.io) [Source](https://github.com/deroproject/derosuite) [Twitter](https://twitter.com/DeroProject) [Discord](https://discord.gg/H95TJDp) [Wiki](https://wiki.dero.io) [Github](https://github.com/deroproject/derosuite) [Stats](http://network.dero.io) [WebWallet](https://wallet.dero.io/) 
 
 
 ### Table of Contents
@@ -27,7 +27,7 @@
 1. [Proving DERO Transactions](#proving-dero-transactions) 
 
 #### ABOUT DERO PROJECT
-&nbsp; &nbsp; &nbsp; &nbsp; [DERO](https://github.com/deroproject/derosuite) is decentralized DAG(Directed Acyclic Graph) based blockchain with enhanced reliability, privacy, security, and usability. Consensus algorithm is PoW based on original cryptonight. DERO is industry leading and the first blockchain to have bulletproofs, TLS encrypted Network.  
+&nbsp; &nbsp; &nbsp; &nbsp; [DERO](https://github.com/deroproject/derosuite) is decentralized DAG(Directed Acyclic Graph) based blockchain with enhanced reliability, privacy, security, and usability. Consensus algorithm is PoW based on [DERO AstroBWT: ASIC/FPGA/GPU resistant CPU mining algorithm ](https://github.com/deroproject/astrobwt). DERO is industry leading and the first blockchain to have bulletproofs, TLS encrypted Network.  
 &nbsp; &nbsp; &nbsp; &nbsp; DERO is the first crypto project to combine a Proof of Work blockchain with a DAG block structure and wholly anonymous transactions based on [CryptoNote Protocol](https://github.com/deroproject/documentation/blob/master/CryptoNote-WP.pdf). The fully distributed ledger processes transactions with a twelve-second average block time and is secure against majority hashrate attacks. DERO will be the first CryptoNote blockchain to have smart contracts on its native chain without any extra layers or secondary blockchains. At present DERO have Smart Contracts on [testnet](https://github.com/deroproject/documentation/blob/master/testnet/stargate.md).
 
 #### DERO Crypto
