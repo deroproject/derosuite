@@ -13,6 +13,7 @@ import "math/big"
 import "path/filepath"
 import "encoding/hex"
 import "encoding/binary"
+import "encoding/json"
 import "os/signal"
 import "sync/atomic"
 import "strings"
@@ -37,12 +38,17 @@ var rpcClient *jsonrpc.RPCClient
 var netClient *http.Client
 var mutex sync.RWMutex
 var job structures.GetBlockTemplate_Result
+var pooljob jobreplydata
+var poolID string
+var m miner
 var maxdelay int = 10000
 var threads int
 var iterations int = 100
 var max_pow_size int = 819200 //astrobwt.MAX_LENGTH
 var wallet_address string
 var daemon_rpc_address string
+var pool_address string
+var pool_password string
 
 var counter uint64
 var hash_rate uint64
@@ -57,7 +63,7 @@ ONE CPU, ONE VOTE.
 http://wiki.dero.io
 
 Usage:
-  dero-miner  --wallet-address=<wallet_address> [--daemon-rpc-address=<http://127.0.0.1:20206>] [--mining-threads=<threads>] [--max-pow-size=1120] [--testnet] [--debug]
+  dero-miner --wallet-address=<wallet_address> [--daemon-rpc-address=<http://127.0.0.1:20206>] [--pool-address=<miners.dero.network:3333>] [--pool-password=<x>] [--mining-threads=<threads>] [--max-pow-size=1120] [--testnet] [--debug]
   dero-miner --bench [--max-pow-size=1120]
   dero-miner -h | --help
   dero-miner --version
@@ -67,12 +73,16 @@ Options:
   --version     Show version.
   --bench  	    Run benchmark mode.
   --daemon-rpc-address=<http://127.0.0.1:20206>    Miner will connect to daemon RPC on this port.
+  --pool-address=<miners.dero.network:3333>	Miner will connect to mining pool via this address:port
+  --pool-password=<x> Defines a pool password. Some pools require password field to be defined to specify worker names or other unique attributes while connecting.
   --wallet-address=<wallet_address>    This address is rewarded when a block is mined sucessfully.
   --mining-threads=<threads>         Number of CPU threads for mining [default: ` + fmt.Sprintf("%d", runtime.GOMAXPROCS(0)) + `]
   --max-pow-size=1120          Max amount of PoW size in KiB to mine, some older/newer cpus can increase their work
 
 Example Mainnet: ./dero-miner-linux-amd64 --wallet-address dERoXHjNHFBabzBCQbBDSqbkLURQyzmPRCLfeFtzRQA3NgVfU4HDbRpZQUKBzq59QU2QLcoAviYQ59FG4bu8T9pZ1woERqciSL --daemon-rpc-address=http://explorer.dero.io:20206 
+Example Mainnet Pool Mining: ./dero-miner-linux-amd64 --wallet-address dERoXHjNHFBabzBCQbBDSqbkLURQyzmPRCLfeFtzRQA3NgVfU4HDbRpZQUKBzq59QU2QLcoAviYQ59FG4bu8T9pZ1woERqciSL --pool-address=http://miners.dero.network:3333
 Example Testnet: ./dero-miner-linux-amd64 --wallet-address dEToYsDQtFoabzBCQbBDSqbkLURQyzmPRCLfeFtzRQA3NgVfU4HDbRpZQUKBzq59QU2QLcoAviYQ59FG4bu8T9pZ1woEQQstVq --daemon-rpc-address=http://127.0.0.1:30306 
+Example Testnet Pool Mining: ./dero-miner-linux-amd64 --wallet-address dEToYsDQtFoabzBCQbBDSqbkLURQyzmPRCLfeFtzRQA3NgVfU4HDbRpZQUKBzq59QU2QLcoAviYQ59FG4bu8T9pZ1woEQQstVq --pool-address=http://miners.dero.network:3333
 If daemon running on local machine no requirement of '--daemon-rpc-address' argument. 
 `
 var Exit_In_Progress = make(chan bool)
@@ -124,11 +134,21 @@ func main() {
 	globals.Logger.Infof("Version v%s", config.Version.String())
 
 	if globals.Arguments["--wallet-address"] != nil {
-		addr, err := globals.ParseValidateAddress(globals.Arguments["--wallet-address"].(string))
-		if err != nil {
-			globals.Logger.Fatalf("Wallet address is invalid: err %s", err)
+		if globals.Arguments["--pool-address"] != nil {
+			// Leave address parsing for the mining pool. This allows you to define extra args like @worker or .staticDiff or solo~ etc. within the wallet-address arg
+			pool_address = globals.Arguments["--pool-address"].(string)
+			wallet_address = globals.Arguments["--wallet-address"].(string)
+		} else {
+			addr, err := globals.ParseValidateAddress(globals.Arguments["--wallet-address"].(string))
+			if err != nil {
+				globals.Logger.Fatalf("Wallet address is invalid: err %s", err)
+			}
+			wallet_address = addr.String()
 		}
-		wallet_address = addr.String()
+	}
+
+	if globals.Arguments["--pool-password"] != nil {
+		pool_password = globals.Arguments["--pool-password"].(string)
 	}
 
 	if !globals.Arguments["--testnet"].(bool) {
@@ -153,14 +173,14 @@ func main() {
 			globals.Logger.Fatalf("Mining threads (%d) is more than available CPUs (%d). This is NOT optimal", threads, runtime.GOMAXPROCS(0))
 		}
 	}
-    if globals.Arguments["--max-pow-size"] != nil {
+	if globals.Arguments["--max-pow-size"] != nil {
 		if s, err := strconv.Atoi(globals.Arguments["--max-pow-size"].(string)); err == nil && s > 200 && s < 100000 {
 			max_pow_size = s*1024
 		} else {
 			globals.Logger.Fatalf("max-pow-size argument cannot be parsed: err %s", err)
 		}
 	}
-    globals.Logger.Infof("max-pow-size limited to %d bytes. Good Luck!!", max_pow_size)
+	globals.Logger.Infof("max-pow-size limited to %d bytes. Good Luck!!", max_pow_size)
 
 	if globals.Arguments["--bench"].(bool) {
 
@@ -288,7 +308,12 @@ func main() {
 					testnet_string = "\033[31m TESTNET"
 				}
 
-				l.SetPrompt(fmt.Sprintf("\033[1m\033[32mDERO Miner: \033[0m"+color+"Height %d "+pcolor+" FOUND_BLOCKS %d \033[32mNW %s %s>%s>>\033[0m ", our_height,  block_counter, hash_rate_string, mining_string, testnet_string))
+				// Remove network hashrate && block found counter for pool mining (handled by pool)
+				if globals.Arguments["--pool-address"] != nil {
+					l.SetPrompt(fmt.Sprintf("\033[1m\033[32mDERO Miner: \033[0m"+color+"Height %d "+pcolor+" \033[32m %s>%s>>\033[0m ", our_height, mining_string, testnet_string))
+				} else {
+					l.SetPrompt(fmt.Sprintf("\033[1m\033[32mDERO Miner: \033[0m"+color+"Height %d "+pcolor+" FOUND_BLOCKS %d \033[32mNW %s %s>%s>>\033[0m ", our_height, block_counter, hash_rate_string, mining_string, testnet_string))
+				}
 				l.Refresh()
 				last_our_height = our_height
 				last_best_height = best_height
@@ -315,18 +340,30 @@ func main() {
 		}
 	}()
 
-	go increase_delay()
-	for i := 0; i < threads; i++ {
-		go mineblock()
+	if pool_address != "" {
+		for i := 0; i < threads; i++ {
+			go minepoolblock()
+		}
+		go receivework()
+	} else {
+		go increase_delay()
+		for i := 0; i < threads; i++ {
+			go mineblock()
+		}
+		go getwork()
 	}
-
-	go getwork()
 
 	for {
 		line, err := l.Readline()
 		if err == readline.ErrInterrupt {
 			if len(line) == 0 {
 				fmt.Print("Ctrl-C received, Exit in progress\n")
+				if m.conn != nil {
+					globals.Logger.Infof("Closing pool connection")
+					m.mu.Lock()
+					m.conn.Close()
+					m.mu.Unlock()
+				}
 				close(Exit_In_Progress)
 				os.Exit(0)
 				break
@@ -365,7 +402,7 @@ func main() {
 			fallthrough
 		case strings.ToLower(line) == "quit":
 			close(Exit_In_Progress)
-    		os.Exit(0)
+			os.Exit(0)
 		case line == "":
 		default:
 			log.Println("you said:", strconv.Quote(line))
@@ -389,9 +426,9 @@ func random_execution(wg *sync.WaitGroup, iterations int) {
 		//astrobwt.POW(workbuf[:])
 		//astrobwt.POW_0alloc(workbuf[:])
 		_,success := astrobwt.POW_optimized_v1(workbuf[:], max_pow_size)
-        if !success{
-            i--
-        }
+		if !success{
+			i--
+		}
 	}
 	wg.Done()
 	runtime.UnlockOSThread()
@@ -468,9 +505,9 @@ func mineblock() {
 	runtime.LockOSThread()
 	threadaffinity()
 
-    iterations_per_loop := uint32(31.0 * float32(astrobwt.MAX_LENGTH) / float32(max_pow_size)) 
+	iterations_per_loop := uint32(31.0 * float32(astrobwt.MAX_LENGTH) / float32(max_pow_size))
 
-    var data astrobwt.Data
+	var data astrobwt.Data
 	for {
 		mutex.RLock()
 		myjob := job
@@ -521,10 +558,10 @@ func mineblock() {
 				binary.BigEndian.PutUint32(nonce_buf, i)
 				//pow := astrobwt.POW_0alloc(work[:])
 				pow, success := astrobwt.POW_optimized_v2(work[:],max_pow_size,&data)
-                if !success {
-                    continue
-                }
-                atomic.AddUint64(&counter, 1)
+				if !success {
+					continue
+				}
+				atomic.AddUint64(&counter, 1)
 				copy(powhash[:], pow[:])
 
 				if CheckPowHashBig(powhash, &diff) == true {
@@ -542,6 +579,365 @@ func mineblock() {
 					*/
 					break
 
+				}
+			}
+		}
+	}
+}
+
+// nelbert442 - begin pool mining supporting structs/functions
+type miner struct {
+	mu        sync.Mutex
+	conn      net.Conn
+	dec       *json.Decoder
+	enc       *json.Encoder
+	rejectNum uint64
+	acceptNum uint64
+	jobDiff   uint64
+}
+
+type reply struct {
+	JsonRPC    string      `json:"jsonrpc"`
+	Id         int         `json:"id"`
+	Method     string      `json:"method,omitempty"`
+	Params     interface{} `json:"params,omitempty"`
+	ReplyError interface{} `json:"error,omitempty"`
+	Result     interface{} `json:"result,omitempty"`
+}
+
+type loginparams struct {
+	Login string `json:"login"`
+	Pass  string `json:"pass"`
+	Agent string `json:"agent"`
+}
+
+type submitparams struct {
+	Id     string `json:"id"`
+	JobId  string `json:"job_id"`
+	Nonce  string `json:"nonce"`
+	Result string `json:"result"`
+}
+
+type jobreplydata struct {
+	Blob   string `json:"blob"`
+	JobId  string `json:"job_id"`
+	Target string `json:"target"`
+	Algo   string `json:"algo"`
+	Height uint64 `json:"height"`
+}
+
+// generates uint64 difficulty from the targetHex sent from the pool w/ the job
+func targettodiff(targetHex string) uint64 {
+	var diff uint64
+	strTarget := targetHex
+	decoded, _ := hex.DecodeString(strTarget)
+	if len(strTarget) < 16 {
+		diff = uint64(binary.LittleEndian.Uint32(decoded))
+		diff = 0xFFFFFFFF / diff
+	} else {
+		diff = binary.LittleEndian.Uint64(decoded)
+	}
+
+	return diff
+}
+
+func (m *miner) connectpool() {
+	var err error
+	var retryTimes = 0
+
+Dial:
+	globals.Logger.Infof("Dialing to pool: %v", pool_address)
+	m.conn, err = net.Dial("tcp", pool_address)
+	if err != nil {
+		retryTimes++
+		if retryTimes == 5 {
+			retryTimes = 0
+			globals.Logger.Fatalf("Failed to connect too many times, exiting...")
+		}
+		if err == io.EOF {
+			globals.Logger.Fatalf("Failed to Login, check your username and password for pool")
+		}
+		globals.Logger.Errorf("retrying... %v", err)
+		time.Sleep(10 * time.Second)
+		goto Dial
+	}
+
+	// Message encoder (send) and decoder (receive) definitions
+	m.enc = json.NewEncoder(m.conn)
+	m.dec = json.NewDecoder(m.conn)
+
+	// Send login
+	login := loginparams{
+		Login: wallet_address,
+		Pass:  pool_password,
+		Agent: "dero-miner",
+	}
+
+	loginRPC := reply{
+		JsonRPC: "2.0",
+		Id:      1,
+		Method:  "login",
+		Params:  login,
+	}
+	m.send(loginRPC)
+}
+
+// miner function to listen for pool jobs
+func (m *miner) listen() {
+	var retryTimes = 0
+
+	for {
+		var message reply
+		err := m.dec.Decode(&message) // Wait for return data after a call of m.enc.Encode(...)
+		if err != nil {
+			if err == io.EOF {
+				continue
+			}
+
+			if _, ok := err.(net.Error); ok {
+				retryTimes++
+				if retryTimes > 10 {
+					retryTimes = 0
+					globals.Logger.Errorf("Failed to connect too many times, exiting...")
+				}
+			}
+
+			globals.Logger.Infof("err: %v", err)
+			m.conn.Close()
+			m.connectpool()
+			time.Sleep(10 * time.Second)
+		}
+
+		if &message == nil {
+			continue
+		}
+
+		go m.handleResponse(message)
+	}
+}
+
+// func to handle received job / detail from pool
+func (m *miner) handleResponse(message reply) {
+	if message.ReplyError != nil {
+		if err, ok := message.ReplyError.(map[string]interface{}); ok {
+			if errMsg, ok := err["message"].(string); ok {
+				m.rejectNum++
+
+				if errMsg == "Invalid address used for login" {
+					globals.Logger.Fatalf("errMsg: %v", errMsg)
+				}
+				globals.Logger.Errorf("Share rejected (%v/%v)", m.acceptNum, m.rejectNum)
+				globals.Logger.Errorf("errMsg: %v", errMsg)
+			}
+		}
+	}
+
+	if message.Result != nil {
+		results, ok := message.Result.(map[string]interface{})
+		if ok && results["job"] != nil {
+
+			// basic status check sent back by login
+			if results["status"] != nil {
+				if status, ok := results["status"].(string); ok && strings.ToLower(status) == "ok" {
+					globals.Logger.Infof("Successful login")
+				}
+			}
+
+			// receives miner ID from pool, sets poolID var for sending jobs back via submit
+			if results["id"] != nil {
+				globals.Logger.Infof("Setting miner ID to %v", results["id"].(string))
+				poolID = results["id"].(string)
+			}
+
+			// Marshal down job from received message
+			messageJobReply, _ := json.Marshal(results["job"])
+			var data jobreplydata
+			json.Unmarshal(messageJobReply, &data)
+
+			// assign new job
+			mutex.Lock()
+			pooljob = data
+			maxdelay = 0
+			mutex.Unlock()
+
+			// decode job target information to diff
+			diff := targettodiff(data.Target)
+			m.mu.Lock()
+			m.jobDiff = diff
+			m.mu.Unlock()
+
+			globals.Logger.Infof("New job from %v at height %v on algo %v - diff %v", pool_address, data.Height, data.Algo, diff)
+
+			our_height = int64(pooljob.Height)
+		}
+
+		if ok && results["status"] != nil && results["job"] == nil {
+			if status, ok := results["status"].(string); ok && strings.ToLower(status) == "ok" {
+				if strings.ToLower(status) == "ok" {
+					m.acceptNum++
+					globals.Logger.Infof("Share accepted at diff %v (%v/%v)", m.jobDiff, m.acceptNum, m.rejectNum)
+					if extraMsg, ok := results["message"].(string); ok {
+						if extraMsg != "" {
+							globals.Logger.Infof("poolMsg: %v", extraMsg)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if message.Params != nil && message.Method == "job" {
+		// Marshal down job from received message
+		messageJobReply, _ := json.Marshal(message.Params)
+		var data jobreplydata
+		json.Unmarshal(messageJobReply, &data)
+
+		// assign new job
+		mutex.Lock()
+		pooljob = data
+		maxdelay = 0
+		mutex.Unlock()
+
+		// decode job target information to diff
+		diff := targettodiff(data.Target)
+		m.mu.Lock()
+		m.jobDiff = diff
+		m.mu.Unlock()
+
+		globals.Logger.Infof("New job from %v at height %v on algo %v - diff %v", pool_address, data.Height, data.Algo, diff)
+
+		our_height = int64(pooljob.Height)
+	}
+}
+
+// func to send information to pool, separate func for cleanliness
+func (m *miner) send(message interface{}) {
+	var retryTimes = 0
+
+Enc:
+	err := m.enc.Encode(message)
+	if err != nil {
+		globals.Logger.Errorf("err: %v", err)
+		retryTimes++
+		if retryTimes > 5 {
+			retryTimes = 0
+			globals.Logger.Fatalf("Failed to connect too many times, exiting...")
+		}
+		m.connectpool()
+		goto Enc
+	}
+}
+
+// receive work from pool
+func receivework() {
+	// Connect to mining pool and login
+	m.connectpool()
+
+	// Start listener for receiving messages
+	m.listen()
+}
+
+// perform mining operations
+func minepoolblock() {
+	// Leaving comments in for changes from mineblock() for future needs if required.
+	var diff big.Int
+	var powhash crypto.Hash
+	var work [76]byte
+	nonce_buf := work[39 : 39+4] //since slices are linked, it modifies parent
+	runtime.LockOSThread()
+	threadaffinity()
+
+	iterations_per_loop := uint32(31.0 * float32(astrobwt.MAX_LENGTH) / float32(max_pow_size))
+
+	var data astrobwt.Data
+	for {
+		mutex.RLock()
+		myjob := &pooljob
+		mutex.RUnlock()
+
+		if maxdelay > 10 {
+			time.Sleep(time.Second)
+			continue
+		}
+
+		n, err := hex.Decode(work[:], []byte(myjob.Blob))
+		if err != nil || n != 76 {
+			time.Sleep(time.Second)
+			globals.Logger.Errorf("Blockwork could not decoded successfully (%s) , err:%s n:%d %+v", myjob.Blob, err, n, myjob)
+			continue
+		}
+
+		// Do not need to rand read the extra nonce, it is provided by the pool within the job blob
+		//rand.Read(extra_nonce[:]) // fill extra nonce with random buffer
+		//copy(work[7+32+4:75], extra_nonce[:])
+
+		if work[0] <= 3 { // check major version
+			for i := uint32(0); i < 20; i++ {
+				// Random read to nonce_buf, no need to inject uint32() val of i
+				//binary.BigEndian.PutUint32(nonce_buf, i)
+
+				diff.SetUint64(m.jobDiff)
+
+				rand.Read(nonce_buf)
+				pow := cryptonight.SlowHash(work[:])
+				atomic.AddUint64(&counter, 1)
+				copy(powhash[:], pow[:])
+
+				if CheckPowHashBig(powhash, &diff) == true {
+					result := hex.EncodeToString(powhash[:])
+
+					// Send submit
+					submit := submitparams{
+						Id:     poolID,
+						JobId:  myjob.JobId,
+						Nonce:  hex.EncodeToString(work[39:43]),
+						Result: result,
+					}
+
+					submitRPC := reply{
+						JsonRPC: "2.0",
+						Id:      1,
+						Method:  "submit",
+						Params:  submit,
+					}
+
+					m.send(submitRPC)
+				}
+			}
+		} else {
+			for i := uint32(0); i < iterations_per_loop; i++ {
+				// Random read to nonce_buf, no need to inject uint32() val of i
+				//binary.BigEndian.PutUint32(nonce_buf, i)
+
+				diff.SetUint64(m.jobDiff)
+
+				rand.Read(nonce_buf)
+				pow, success := astrobwt.POW_optimized_v2(work[:], max_pow_size, &data)
+				if !success {
+					continue
+				}
+				atomic.AddUint64(&counter, 1)
+				copy(powhash[:], pow[:])
+
+				if CheckPowHashBig(powhash, &diff) == true {
+					result := hex.EncodeToString(powhash[:])
+
+					// Send submit
+					submit := submitparams{
+						Id:     poolID,
+						JobId:  myjob.JobId,
+						Nonce:  hex.EncodeToString(nonce_buf),
+						Result: result,
+					}
+
+					submitRPC := reply{
+						JsonRPC: "2.0",
+						Id:      1,
+						Method:  "submit",
+						Params:  submit,
+					}
+
+					m.send(submitRPC)
 				}
 			}
 		}
