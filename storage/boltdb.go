@@ -27,7 +27,7 @@ import "path/filepath"
 import "encoding/binary"
 
 import "github.com/romana/rlog"
-import bolt "github.com/coreos/bbolt"
+import bolt "go.etcd.io/bbolt"
 import log "github.com/sirupsen/logrus"
 
 import "github.com/deroproject/derosuite/globals"
