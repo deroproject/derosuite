@@ -14,7 +14,7 @@ import "encoding/binary"
 import "github.com/romana/rlog"
 import "github.com/vmihailenco/msgpack"
 
-import bolt "github.com/coreos/bbolt"
+import bolt "go.etcd.io/bbolt"
 import "github.com/blang/semver"
 import "golang.org/x/crypto/pbkdf2" // // used to encrypt master password ( so user can change his password anytime)
 
