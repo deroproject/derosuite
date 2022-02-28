@@ -1,6 +1,15 @@
 ### Welcome to the Dero Project
 [DERO News](https://github.com/deroproject/deronews) [Forum](https://forum.dero.io) [Wiki](https://wiki.dero.io) [Explorer](https://explorer.dero.io) [Source](https://github.com/deroproject/derosuite) [Twitter](https://twitter.com/DeroProject) [Discord](https://discord.gg/H95TJDp)  [Github](https://github.com/deroproject/derosuite) [Stats](http://network.dero.io) [WebWallet](https://wallet.dero.io/) [Medium](https://medium.com/deroproject)
 
+#### Important Notice 26 FEB 2022:  
+DERO has migrated from Atlantis(CryptoNote) to it's own DERO Homomorphic Encrytion Blockchain Protocol on 26 Feb 2022 with code name Stargate.  
+Homomorphic Encryption offers offers very high level of privacy.  
+Please visit new repo of [DERO-HE](https://github.com/deroproject/derohe).  
+For migration of your DERO from DERO-Atlantis to new DERO-Stargate check [DERO swap-HowTO](https://docs.dero.io/rtd_pages/basic_cntohe.html).  
+This repo is now outdated and will be archived. 
+
+
+
 
 ### Table of Contents
 1. [ABOUT DERO PROJECT](#about-dero-project) 
