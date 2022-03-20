@@ -1216,6 +1216,11 @@ skip_checks:
 				// and leave the original TX untouched
 				total_reward := base_reward + total_fees
 
+				if hard_fork_version_current >= 5 {
+					total_reward = 1 // 1 atomic unit
+					base_reward = 0 // 0 atomic unit 
+				}
+
 				// store total  reward
 				dbtx.StoreUint64(BLOCKCHAIN_UNIVERSE, GALAXY_BLOCK, bl_current_hash[:], PLANET_MINERTX_REWARD, total_reward)
 

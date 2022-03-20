@@ -50,6 +50,7 @@ var mainnet_hard_forks = []Hard_fork{
 	{2, 95551,  0, 0, 0, true}, // version 2 hard fork where Atlantis bootstraps , it's mandatory
         {3, 721000, 0, 0, 0, true}, // version 3 hard fork emission fix, it's mandatory
         {4, 4550555, 0, 0, 0, true}, // version 4 hard fork AstroBWT CPU Mining enabled. It's mandatory
+       	{5, config.HF5_HEIGHT, 0, 0, 0, true}, // version 5 hard fork where we keep the chain alive, so who could not swap earlier can swap later
 }
 
 // current testnet_hard_forks
@@ -57,6 +58,7 @@ var testnet_hard_forks = []Hard_fork{
 	//{1, 0, 0, 0, 0, true},    // version 1 hard fork where genesis block landed
 	{3, 0, 0, 0, 0, true}, // version 3 hard fork where we started , it's mandatory
   	{4, 3, 0, 0, 0, true}, // version 4 hard fork where we change mining algorithm it's mandatory
+   	{5, 4, 0, 0, 0, true}, // version 5 hard fork where we keep the chain alive, so who could not swap earlier can swap later
 }
 
 // current simulation_hard_forks

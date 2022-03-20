@@ -93,6 +93,8 @@ const MAINNET_MINIMUM_DIFFICULTY = uint64(5* 1000 * BLOCK_TIME_hf4) // 5 KH/s
 const TESTNET_BOOTSTRAP_DIFFICULTY = uint64(1600 * BLOCK_TIME_hf4) // testnet bootstrap at 800 H/s
 const TESTNET_MINIMUM_DIFFICULTY = uint64(800 * BLOCK_TIME_hf4) // 800 H
 
+const HF5_HEIGHT = 6713000 // hf applies at this height 
+
 
 // this single parameter controls lots of various parameters
 // within the consensus, it should never go below 7
