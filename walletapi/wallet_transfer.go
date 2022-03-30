@@ -717,7 +717,8 @@ func (w *Wallet) select_outputs_for_transfer(needed_amount uint64, fees uint64, 
 		}
 
 		// do not select indexes which are past HF and which are dust
-		if tx.TXdata.Height <= config.HF5_HEIGHT && tx.WAmount > 20 && inputmaturity.Is_Input_Mature(w.Get_Height(),
+//		if tx.TXdata.Height <= config.HF5_HEIGHT && tx.WAmount > 20 && inputmaturity.Is_Input_Mature(w.Get_Height(),
+		if inputmaturity.Is_Input_Mature(w.Get_Height(),
 			tx.TXdata.Height,
 			tx.TXdata.Unlock_Height,
 			tx.TXdata.SigType) && !w.IsKeyImageSpent(tx.WKimage) {
